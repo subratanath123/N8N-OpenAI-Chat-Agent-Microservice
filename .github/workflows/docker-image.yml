@@ -5,9 +5,19 @@ on:
     branches: [ "master" ]
   pull_request:
     branches: [ "master" ]
-
+env:
+  PROJECT_NAME: OpenAI-Chat-Agent-Microservice
+  
 jobs:
-
+  greeting_job:
+      runs-on: ubuntu-latest
+      env:
+        Greeting: Hello
+      steps:
+        - name: "Say Hello Mona it's Monday"
+          run: echo "$Greeting $First_Name. Happy Coding on the project $PROJECT_NAME!"
+          env:
+            First_Name: Subrata
   build:
 
     runs-on: ubuntu-latest
