@@ -1,15 +1,12 @@
 package net.ai.chatbot.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import net.ai.chatbot.config.PineconeConfig;
 import net.ai.chatbot.dao.ChatDao;
 import net.ai.chatbot.dto.ChatMessage;
 import net.ai.chatbot.service.OpenAiService;
-import net.ai.chatbot.service.ThreadLocalVectorStoreHolder;
-import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.*;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
@@ -33,14 +30,7 @@ public class WebSocketController {
     private OpenAiService openAiService;
 
     @Autowired
-    private ThreadLocalVectorStoreHolder threadLocalVectorStoreHolder;
-
-    @Autowired
-    private PineconeConfig pineconeConfig;
-
-    @Autowired
-    private EmbeddingModel embeddingModel;
-
+    private VectorStore vectorStore;
 
     @MessageMapping("/chat.register")
     @SendTo("/topic/public")
@@ -76,9 +66,7 @@ public class WebSocketController {
         //Sending other users/chabots message to self chatbox
         if (userEmail.equals("chatbot")) {
 
-            threadLocalVectorStoreHolder.set(pineconeConfig.pineconeVectorStore(embeddingModel, chatMessage.getSenderEmail()));
-
-            List<Document> knowledgeBaseResults = threadLocalVectorStoreHolder.get().similaritySearch(SearchRequest.builder()
+            List<Document> knowledgeBaseResults = vectorStore.similaritySearch(SearchRequest.builder()
                     .query(chatMessage.getContent())
                     .topK(10)
                     .build());
