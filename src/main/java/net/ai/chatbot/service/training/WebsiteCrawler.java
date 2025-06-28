@@ -11,7 +11,11 @@ import com.goikosoft.crawler4j.robotstxt.RobotstxtServer;
 import com.goikosoft.crawler4j.url.WebURL;
 import net.ai.chatbot.entity.ScrappedData;
 import net.ai.chatbot.entity.WebsiteTrainEvent;
+import net.ai.chatbot.utils.AuthUtils;
+import net.ai.chatbot.utils.Utils;
 
+import java.io.File;
+import java.nio.file.Path;
 import java.util.Set;
 import java.util.function.Consumer;
 import java.util.regex.Pattern;
@@ -61,16 +65,22 @@ public class WebsiteCrawler extends WebCrawler {
 
     //Call this to start a new crawler
     public static void crawl(WebsiteTrainEvent websiteTrainEvent, Consumer<ScrappedData> consumer) throws Exception {
+
+        String crawlStoragePath = Utils.sanitizePath("/media/subrata/m2-pro/tmp/" + websiteTrainEvent.email() + "/" + websiteTrainEvent.baseUrl());
+        Utils.createDirectoryIfNotExists(crawlStoragePath);
+        File crawlStorage = new File(crawlStoragePath);
+
         CrawlConfig htmlConfig = new CrawlConfig();
-        PageFetcher pageFetcherHtml = new PageFetcher(htmlConfig);
-
+        htmlConfig.setCrawlStorageFolder(crawlStorage.getAbsolutePath());
+        PageFetcher pageFetcher = new PageFetcher(htmlConfig);
         RobotstxtConfig robotstxtConfig = new RobotstxtConfig();
-        RobotstxtServer robotstxtServer = new RobotstxtServer(robotstxtConfig, pageFetcherHtml);
+        RobotstxtServer robotstxtServer = new RobotstxtServer(robotstxtConfig, pageFetcher);
+        CrawlController htmlController = new CrawlController(htmlConfig, pageFetcher, robotstxtServer);
 
-        CrawlController htmlController = new CrawlController(htmlConfig, pageFetcherHtml, robotstxtServer);
         htmlController.addSeed(websiteTrainEvent.websiteUrl());
 
         CrawlerStatistics stats = new CrawlerStatistics();
+
         CrawlController.WebCrawlerFactory<WebsiteCrawler> htmlFactory = () -> new WebsiteCrawler(stats, websiteTrainEvent, consumer);
 
         htmlController.startNonBlocking(htmlFactory, 10);

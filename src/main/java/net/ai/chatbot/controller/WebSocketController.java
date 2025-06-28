@@ -4,6 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dao.ChatDao;
 import net.ai.chatbot.dto.ChatMessage;
 import net.ai.chatbot.service.openai.OpenAiService;
+import net.ai.chatbot.service.pinnecone.PineconeVectorStoreFactory;
+import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -16,21 +18,30 @@ import org.springframework.stereotype.Controller;
 import java.util.Date;
 import java.util.List;
 
+import static net.ai.chatbot.utils.VectorDatabaseUtils.getNameSpace;
+
 @Controller
 @Slf4j
 public class WebSocketController {
 
-    @Autowired
-    private SimpMessagingTemplate simpMessagingTemplate;
+    private final SimpMessagingTemplate simpMessagingTemplate;
 
-    @Autowired
-    private ChatDao chatDao;
+    private final ChatDao chatDao;
 
-    @Autowired
-    private OpenAiService openAiService;
+    private final OpenAiService openAiService;
 
-    @Autowired
-    private VectorStore vectorStore;
+    private final PineconeVectorStoreFactory pineconeVectorStoreFactory;
+
+    public WebSocketController(SimpMessagingTemplate simpMessagingTemplate,
+                               ChatDao chatDao,
+                               OpenAiService openAiService,
+                               PineconeVectorStoreFactory pineconeVectorStoreFactory) {
+
+        this.simpMessagingTemplate = simpMessagingTemplate;
+        this.chatDao = chatDao;
+        this.openAiService = openAiService;
+        this.pineconeVectorStoreFactory = pineconeVectorStoreFactory;
+    }
 
     @MessageMapping("/chat.register")
     @SendTo("/topic/public")
@@ -66,7 +77,9 @@ public class WebSocketController {
         //Sending other users/chabots message to self chatbox
         if (userEmail.equals("chatbot")) {
 
-            List<Document> knowledgeBaseResults = vectorStore.similaritySearch(SearchRequest.builder()
+
+            List<Document> knowledgeBaseResults = pineconeVectorStoreFactory.createForNamespace(getNameSpace(chatMessage.getSenderEmail(), "project"))
+                    .similaritySearch(SearchRequest.builder()
                     .query(chatMessage.getContent())
                     .topK(10)
                     .build());

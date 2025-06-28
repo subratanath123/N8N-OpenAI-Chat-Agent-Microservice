@@ -1,8 +1,10 @@
 package net.ai.chatbot.config;
 
+import net.ai.chatbot.override.OverridedOpenAiEmbeddingModel;
 import net.ai.chatbot.service.pinnecone.PineconeVectorStoreFactory;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
+import org.springframework.ai.openai.OpenAiEmbeddingOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.ai.vectorstore.pinecone.PineconeVectorStore;
@@ -11,6 +13,9 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
+
+import static org.springframework.ai.document.MetadataMode.ALL;
+import static org.springframework.ai.document.MetadataMode.EMBED;
 
 
 //https://docs.spring.io/spring-ai/reference/api/vectordbs/pinecone.html
@@ -40,11 +45,17 @@ public class PineconeConfig {
 
     @Bean
     public EmbeddingModel embeddingModel() {
-        return new OpenAiEmbeddingModel(OpenAiApi.builder()
+        OpenAiApi api = OpenAiApi.builder()
                 .apiKey(openAiKey)
                 .baseUrl(openAiBaseUrl)
-                .build()
-        );
+                .build();
+
+        OpenAiEmbeddingOptions options =  OpenAiEmbeddingOptions
+                .builder()
+                .model("text-embedding-3-small")
+                .build();
+
+        return new OverridedOpenAiEmbeddingModel(api, EMBED, options);
     }
 
     @Bean

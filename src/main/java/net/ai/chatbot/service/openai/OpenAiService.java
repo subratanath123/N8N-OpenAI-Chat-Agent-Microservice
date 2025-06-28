@@ -56,7 +56,7 @@ public class OpenAiService {
                     .temperature(temperature);
 
             /* Send chat request and obtain response */
-            chatResponse = restTemplate.postForObject(apiUrl, request.build(), ChatResponse.class);
+            chatResponse = restTemplate.postForObject("https://api.openai.com/v1/chat/completions", request.build(), ChatResponse.class);
 
         } catch (Exception e) {
             log.error("error : " + e.getMessage());

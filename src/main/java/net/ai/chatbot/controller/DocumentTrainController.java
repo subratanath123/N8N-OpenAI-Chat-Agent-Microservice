@@ -1,8 +1,8 @@
 package net.ai.chatbot.controller;
 
 
-import org.springframework.ai.document.Document;
-import org.springframework.ai.vectorstore.VectorStore;
+import net.ai.chatbot.service.training.ChatBotTrainingService;
+import org.apache.tika.exception.TikaException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,16 +11,15 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.util.List;
 
 @RestController
 @RequestMapping("/api/openai")
 public class DocumentTrainController {
 
-    private final VectorStore vectorStore;
+    private final ChatBotTrainingService chatBotTrainingService;
 
-    public DocumentTrainController(VectorStore vectorStore) {
-        this.vectorStore = vectorStore;
+    public DocumentTrainController(ChatBotTrainingService chatBotTrainingService) {
+        this.chatBotTrainingService = chatBotTrainingService;
     }
 
     @PostMapping("/train")
@@ -29,32 +28,22 @@ public class DocumentTrainController {
             @RequestParam(value = "description", required = false) String description,
             @RequestParam(value = "file", required = false) MultipartFile file) {
 
-//        if (file.isEmpty()) {
-//            return ResponseEntity.badRequest().body("File is required");
-//        }
-
         try {
 
-            if (file != null) {
-                byte[] fileBytes = file.getBytes();
-                String fileName = file.getOriginalFilename();
-                System.out.println("Uploaded file: " + fileName + " (size: " + fileBytes.length + " bytes)");
+            if (webSite != null && webSite.length() > 0) {
+                chatBotTrainingService.handleWebsiteUrlTraining(webSite);
+
+            } else if (description != null && description.length() > 0) {
+                chatBotTrainingService.handleTextBasedTraining(description);
+
+            } else if (file != null && !file.isEmpty()) {
+                chatBotTrainingService.handleFileTraining(file);
             }
-
-            System.out.println("Website: " + webSite);
-            System.out.println("Description: " + description);
-
-            List<Document> documents = List.of(
-                    new Document(description)
-            );
-
-            vectorStore.add(documents);
 
             return ResponseEntity.ok("Form submitted successfully!");
 
-        } catch (IOException e) {
+        } catch (IOException | TikaException e) {
             return ResponseEntity.internalServerError().body("Error processing file");
         }
     }
-
 }

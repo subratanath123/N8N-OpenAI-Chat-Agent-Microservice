@@ -3,9 +3,12 @@ package net.ai.chatbot.service.redis;
 import net.ai.chatbot.entity.WebsiteTrainEvent;
 import net.ai.chatbot.service.pinnecone.PineconeService;
 import net.ai.chatbot.service.training.WebsiteCrawler;
+import net.ai.chatbot.utils.VectorDatabaseUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.transformer.splitter.TextSplitter;
+import org.springframework.ai.transformer.splitter.TokenTextSplitter;
 import org.springframework.data.redis.connection.stream.ObjectRecord;
 import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.stereotype.Service;
@@ -32,14 +35,14 @@ public class RedisWebsiteCrawlMessageProcessor implements StreamListener<String,
 
         try {
             WebsiteCrawler.crawl(record.getValue(), o -> {
+                Document document = new Document(o.scrappedData(), Map.of(o.title(), o.title()));
+
+                TextSplitter splitter = new TokenTextSplitter(true);
+                List<Document> smallDocs = splitter.split(document);
 
                 pineconeService.storeDocument(
-                        record.getValue().email()
-                                + ":"
-                                + "websiteData"
-                                + ":"
-                                + record.getValue().websiteUrl(),
-                        List.of(new Document(o.scrappedData(), Map.of(o.title(), o.title()))));
+                        VectorDatabaseUtils.getNameSpace(record.getValue().email(), "project"),
+                        smallDocs);
 
             });
         } catch (Exception e) {
