@@ -1,6 +1,7 @@
 package net.ai.chatbot.config;
 
 import net.ai.chatbot.entity.WebsiteTrainEvent;
+import net.ai.chatbot.service.pinnecone.PineconeService;
 import net.ai.chatbot.service.redis.RedisConsumerGroupService;
 import net.ai.chatbot.service.redis.RedisWebsiteCrawlMessageProcessor;
 import org.springframework.beans.factory.annotation.Value;
@@ -81,7 +82,7 @@ public class RedisConfig {
     }
 
     @Bean
-    public Subscription subscription(RedisConnectionFactory connectionFactory) throws UnknownHostException {
+    public Subscription subscription(RedisConnectionFactory connectionFactory, PineconeService pineconeService) throws UnknownHostException {
 
         redisConsumerGroupService.createConsumerGroupIfNotExists(connectionFactory, TRAIN_WEBSITE_EVENT_STREAM, REDIS_STREAM_SERVER_GROUP);
 
@@ -101,15 +102,15 @@ public class RedisConfig {
 
         Subscription subscription =
                 container.receive(Consumer.from(REDIS_STREAM_SERVER_GROUP, InetAddress.getLocalHost().getHostName()),
-                        streamOffset, purchaseStreamListener());
+                        streamOffset, purchaseStreamListener(pineconeService));
 
         container.start();
         return subscription;
     }
 
     @Bean
-    public StreamListener<String, ObjectRecord<String, WebsiteTrainEvent>> purchaseStreamListener() {
+    public StreamListener<String, ObjectRecord<String, WebsiteTrainEvent>> purchaseStreamListener(PineconeService pineconeService) {
         // handle message from stream
-        return new RedisWebsiteCrawlMessageProcessor();
+        return new RedisWebsiteCrawlMessageProcessor(pineconeService);
     }
 }

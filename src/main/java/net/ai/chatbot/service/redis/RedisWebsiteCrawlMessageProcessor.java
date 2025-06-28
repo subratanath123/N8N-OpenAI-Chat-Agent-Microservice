@@ -6,7 +6,6 @@ import net.ai.chatbot.service.training.WebsiteCrawler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.connection.stream.ObjectRecord;
 import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.stereotype.Service;
@@ -20,8 +19,11 @@ public class RedisWebsiteCrawlMessageProcessor implements StreamListener<String,
 
     private Logger log = LoggerFactory.getLogger(RedisWebsiteCrawlMessageProcessor.class);
 
-    @Autowired
-    private PineconeService pineconeService;
+    private final PineconeService pineconeService;
+
+    public RedisWebsiteCrawlMessageProcessor(PineconeService pineconeService) {
+        this.pineconeService = pineconeService;
+    }
 
     @Override
     public void onMessage(ObjectRecord<String, WebsiteTrainEvent> record) {

@@ -18,7 +18,7 @@ public class RedisConsumerGroupService {
                 redisConnectionFactory.getConnection().streamCommands()
                         .xGroupCreate(streamKey.getBytes(),
                                 groupName,
-                                ReadOffset.lastConsumed(), true);
+                                ReadOffset.latest(), true);
 
                 log.info("Consumer Group {} created with stream key {}", groupName, streamKey);
 
