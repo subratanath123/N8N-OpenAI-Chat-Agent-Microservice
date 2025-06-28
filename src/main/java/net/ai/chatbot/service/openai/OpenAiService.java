@@ -1,4 +1,4 @@
-package net.ai.chatbot.service;
+package net.ai.chatbot.service.openai;
 
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.ChatRequest;

@@ -54,6 +54,10 @@ dependencies {
 	annotationProcessor 'org.projectlombok:lombok'
 
 	implementation 'software.amazon.awssdk:s3:2.20.157'
+
+	implementation("com.goikosoft.crawler4j:crawler4j:4.5.11")
+
+	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
 }
 
 dependencyManagement {

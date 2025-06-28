@@ -1,24 +1,26 @@
 package net.ai.chatbot.controller;
 
 
-import net.ai.chatbot.service.ThreadLocalVectorStoreHolder;
 import org.springframework.ai.document.Document;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Map;
 
 @RestController
 @RequestMapping("/api/openai")
 public class DocumentTrainController {
 
-    private final ThreadLocalVectorStoreHolder threadLocalVectorStoreHolder;
+    private final VectorStore vectorStore;
 
-    public DocumentTrainController(ThreadLocalVectorStoreHolder threadLocalVectorStoreHolder) {
-        this.threadLocalVectorStoreHolder = threadLocalVectorStoreHolder;
+    public DocumentTrainController(VectorStore vectorStore) {
+        this.vectorStore = vectorStore;
     }
 
     @PostMapping("/train")
@@ -46,7 +48,7 @@ public class DocumentTrainController {
                     new Document(description)
             );
 
-            threadLocalVectorStoreHolder.get().add(documents);
+            vectorStore.add(documents);
 
             return ResponseEntity.ok("Form submitted successfully!");
 

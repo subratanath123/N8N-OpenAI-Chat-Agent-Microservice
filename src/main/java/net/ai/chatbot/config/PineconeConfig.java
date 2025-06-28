@@ -1,5 +1,6 @@
 package net.ai.chatbot.config;
 
+import net.ai.chatbot.service.pinnecone.PineconeVectorStoreFactory;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.openai.api.OpenAiApi;
@@ -76,18 +77,9 @@ public class PineconeConfig {
         return restTemplate;
     }
 
-//    @Bean
-//    public FilterRegistrationBean<ThreadLocalVectorStoreFilter> threadLocalVectorStoreFilter(ThreadLocalVectorStoreHolder threadLocalVectorStoreHolder,
-//                                                                                             EmbeddingModel embeddingModel) {
-//        FilterRegistrationBean<ThreadLocalVectorStoreFilter> registrationBean = new FilterRegistrationBean<>();
-//
-//        registrationBean.setFilter(new ThreadLocalVectorStoreFilter(threadLocalVectorStoreHolder, embeddingModel, this));
-//
-//        registrationBean.addUrlPatterns("/api/openai/*");
-//
-//        registrationBean.setOrder(1);
-//
-//        return registrationBean;
-//    }
+    @Bean
+    public PineconeVectorStoreFactory pineconeVectorStoreFactory(EmbeddingModel embeddingModel) {
+        return new PineconeVectorStoreFactory(pinneconeApiKey, pinneconeIndexName, embeddingModel);
+    }
 
 }

@@ -3,7 +3,7 @@ package net.ai.chatbot.controller;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dao.ChatDao;
 import net.ai.chatbot.dto.ChatMessage;
-import net.ai.chatbot.service.OpenAiService;
+import net.ai.chatbot.service.openai.OpenAiService;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
