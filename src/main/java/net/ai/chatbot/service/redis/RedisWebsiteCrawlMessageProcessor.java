@@ -35,7 +35,13 @@ public class RedisWebsiteCrawlMessageProcessor implements StreamListener<String,
 
         try {
             WebsiteCrawler.crawl(record.getValue(), o -> {
-                Document document = new Document(o.scrappedData(), Map.of(o.title(), o.title()));
+                Document document = new Document(o.html(),
+                        Map.of(
+                                "Website page textual data", o.scrappedData(),
+                                "The Url of current html content", o.url(),
+                                "Page Title", o.title()
+                        )
+                );
 
                 TextSplitter splitter = new TokenTextSplitter(true);
                 List<Document> smallDocs = splitter.split(document);
