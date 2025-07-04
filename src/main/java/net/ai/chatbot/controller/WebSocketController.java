@@ -5,18 +5,18 @@ import net.ai.chatbot.dao.ChatDao;
 import net.ai.chatbot.dto.ChatMessage;
 import net.ai.chatbot.service.openai.OpenAiService;
 import net.ai.chatbot.service.pinnecone.PineconeVectorStoreFactory;
-import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.handler.annotation.*;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Controller;
 
+import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import static net.ai.chatbot.utils.VectorDatabaseUtils.getNameSpace;
 
@@ -71,22 +71,26 @@ public class WebSocketController {
         String chatHistoryId = chatDao.getChatHistoryId(userEmail, chatMessage.getSenderEmail());
         chatDao.saveChatHistory(chatHistoryId, chatMessage);
 
+        chatDao.getChatHistory(userEmail, chatMessage.getSenderEmail());
+
         //Sending self message to self chatbox
         simpMessagingTemplate.convertAndSend("/queue/reply-" + chatMessage.getSenderEmail(), chatMessage);
 
         //Sending other users/chabots message to self chatbox
         if (userEmail.equals("chatbot")) {
+            VectorStore knowledgeBaseVectorStore = pineconeVectorStoreFactory.createForNamespace(getNameSpace(chatMessage.getSenderEmail(), "project"));
 
-
-            List<Document> knowledgeBaseResults = pineconeVectorStoreFactory.createForNamespace(getNameSpace(chatMessage.getSenderEmail(), "project"))
+            List<Document> knowledgeBaseResults = knowledgeBaseVectorStore
                     .similaritySearch(SearchRequest.builder()
-                    .query(chatMessage.getContent())
-                    .topK(10)
-                    .build());
+                            .query(chatMessage.getContent())
+                            .topK(10)
+                            .build());
+
+            List<ChatMessage> lastChatMessages = chatDao.getLastChatMessages(userEmail, chatMessage.getSenderEmail(), 0, 10).getContent();
 
             ChatMessage botReplayMessage = ChatMessage
                     .builder()
-                    .content(openAiService.chat(chatMessage.getContent(), knowledgeBaseResults).getChoices().get(0).getMessage().getContent())
+                    .content(openAiService.chat(chatMessage.getContent(), knowledgeBaseResults, lastChatMessages).getChoices().get(0).getMessage().getContent())
                     .senderEmail(userEmail)
                     .created(new Date())
                     .build();
@@ -99,6 +103,30 @@ public class WebSocketController {
         } else {
             simpMessagingTemplate.convertAndSend("/queue/reply-" + userEmail, chatMessage);
         }
+    }
+
+    private void saveOngoingChat(VectorStore chatHistoryVectorStore, ChatMessage chatMessage, String userEmail, ChatMessage botReplayMessage) {
+
+        // Step 2: Create Documents for both messages
+        Document userDoc = new Document(
+                chatMessage.getContent(),
+                Map.of(
+                        "sender", "user",
+                        "email", chatMessage.getSenderEmail(),
+                        "timestamp", new Date().getTime()
+                )
+        );
+
+        Document botDoc = new Document(
+                botReplayMessage.getContent(),
+                Map.of(
+                        "sender", "chatBot's Answer for user query",
+                        "email", userEmail,
+                        "timestamp", new Date().getTime()
+                )
+        );
+
+        chatHistoryVectorStore.add(Arrays.asList(userDoc, botDoc));
     }
 
 }
