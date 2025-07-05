@@ -1,8 +1,11 @@
 package net.ai.chatbot.controller;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dao.ChatDao;
+import net.ai.chatbot.dao.ProjectDao;
 import net.ai.chatbot.dto.ChatMessage;
+import net.ai.chatbot.dto.Project;
 import net.ai.chatbot.service.openai.OpenAiService;
 import net.ai.chatbot.service.pinnecone.PineconeVectorStoreFactory;
 import org.springframework.ai.document.Document;
@@ -22,26 +25,18 @@ import static net.ai.chatbot.utils.VectorDatabaseUtils.getNameSpace;
 
 @Controller
 @Slf4j
+@AllArgsConstructor
 public class WebSocketController {
 
     private final SimpMessagingTemplate simpMessagingTemplate;
 
     private final ChatDao chatDao;
+    private final ProjectDao projectDao;
 
     private final OpenAiService openAiService;
 
     private final PineconeVectorStoreFactory pineconeVectorStoreFactory;
 
-    public WebSocketController(SimpMessagingTemplate simpMessagingTemplate,
-                               ChatDao chatDao,
-                               OpenAiService openAiService,
-                               PineconeVectorStoreFactory pineconeVectorStoreFactory) {
-
-        this.simpMessagingTemplate = simpMessagingTemplate;
-        this.chatDao = chatDao;
-        this.openAiService = openAiService;
-        this.pineconeVectorStoreFactory = pineconeVectorStoreFactory;
-    }
 
     @MessageMapping("/chat.register")
     @SendTo("/topic/public")
@@ -59,9 +54,10 @@ public class WebSocketController {
         return chatMessage;
     }
 
-    @MessageMapping("/user-message-{userEmail}")
+    @MessageMapping("/user-message-{userEmail}-{projectId}")
     public void sendToOtherUser(@Payload ChatMessage chatMessage,
                                 @DestinationVariable String userEmail,
+                                @DestinationVariable String projectId,
                                 @Header("simpSessionId") String sessionId) {
 
         chatMessage.setCreated(new Date());
@@ -78,7 +74,9 @@ public class WebSocketController {
 
         //Sending other users/chabots message to self chatbox
         if (userEmail.equals("chatbot")) {
-            VectorStore knowledgeBaseVectorStore = pineconeVectorStoreFactory.createForNamespace(getNameSpace(chatMessage.getSenderEmail(), "project"));
+            Project project = projectDao.findById(projectId);
+
+            VectorStore knowledgeBaseVectorStore = pineconeVectorStoreFactory.createForNamespace(getNameSpace(chatMessage.getSenderEmail(), project.getProjectName()));
 
             List<Document> knowledgeBaseResults = knowledgeBaseVectorStore
                     .similaritySearch(SearchRequest.builder()

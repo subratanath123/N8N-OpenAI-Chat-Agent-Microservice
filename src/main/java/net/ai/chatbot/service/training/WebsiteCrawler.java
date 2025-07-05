@@ -46,7 +46,6 @@ public class WebsiteCrawler extends WebCrawler {
 
     @Override
     public void visit(Page page) {
-        String url = page.getWebURL().getURL();
 
         if (page.getParseData() instanceof HtmlParseData htmlParseData) {
             String title = htmlParseData.getTitle();
@@ -57,7 +56,7 @@ public class WebsiteCrawler extends WebCrawler {
 
             System.out.println("----------------Scrapper Data :: Start-----------");
 
-            consumer.accept(new ScrappedData(websiteTrainEvent.websiteUrl(), title, text, html));
+            consumer.accept(new ScrappedData(page.getWebURL().getURL(), title, text, html));
 
             System.out.println("----------------Scrapper Data :: End-----------");
         }

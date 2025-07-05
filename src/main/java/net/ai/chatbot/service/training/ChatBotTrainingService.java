@@ -1,5 +1,6 @@
 package net.ai.chatbot.service.training;
 
+import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.entity.WebsiteTrainEvent;
 import net.ai.chatbot.service.pinnecone.PineconeVectorStoreFactory;
@@ -23,20 +24,15 @@ import static net.ai.chatbot.utils.VectorDatabaseUtils.getSplittedDocuments;
 
 @Service
 @Slf4j
+@AllArgsConstructor
 public class ChatBotTrainingService {
 
     private final PineconeVectorStoreFactory pineconeVectorStoreFactory;
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    public ChatBotTrainingService(PineconeVectorStoreFactory pineconeVectorStoreFactory,
-                                  RedisTemplate<String, String> redisTemplate) {
-        this.pineconeVectorStoreFactory = pineconeVectorStoreFactory;
-        this.redisTemplate = redisTemplate;
-    }
-
-    public void handleWebsiteUrlTraining(String webSite) {
-        WebsiteTrainEvent websiteTrainEvent = new WebsiteTrainEvent(AuthUtils.getEmail(), webSite, Utils.extractBaseUrl(webSite));
+    public void handleWebsiteUrlTraining(String projectId, String webSite, String projectName) {
+        WebsiteTrainEvent websiteTrainEvent = new WebsiteTrainEvent(projectId, AuthUtils.getEmail(), projectName, webSite, Utils.extractBaseUrl(webSite));
 
         ObjectRecord<String, WebsiteTrainEvent> record = StreamRecords
                 .newRecord()
@@ -48,15 +44,15 @@ public class ChatBotTrainingService {
         log.info("Creating websiteTrainEvent... recordId:{}", recordId);
     }
 
-    public void handleFileTraining(MultipartFile file) throws IOException, TikaException {
+    public void handleFileTraining(MultipartFile file, String projectName) throws IOException, TikaException {
         List<Document> smallDocs = getSplittedDocuments(file);
 
-        pineconeVectorStoreFactory.createForNamespace(getNameSpace(AuthUtils.getEmail(), "project")).add(smallDocs);
+        pineconeVectorStoreFactory.createForNamespace(getNameSpace(AuthUtils.getEmail(), projectName)).add(smallDocs);
     }
 
-    public void handleTextBasedTraining(String description) throws IOException, TikaException {
+    public void handleTextBasedTraining(String description, String projectName) throws IOException, TikaException {
         List<Document> smallDocs = getSplittedDocuments(description);
 
-        pineconeVectorStoreFactory.createForNamespace(getNameSpace(AuthUtils.getEmail(), "project")).add(smallDocs);
+        pineconeVectorStoreFactory.createForNamespace(getNameSpace(AuthUtils.getEmail(), projectName)).add(smallDocs);
     }
 }

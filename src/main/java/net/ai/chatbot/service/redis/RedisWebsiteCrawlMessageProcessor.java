@@ -1,32 +1,28 @@
 package net.ai.chatbot.service.redis;
 
+import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import net.ai.chatbot.dto.ProjectTrainingInfo;
 import net.ai.chatbot.entity.WebsiteTrainEvent;
 import net.ai.chatbot.service.pinnecone.PineconeService;
 import net.ai.chatbot.service.training.WebsiteCrawler;
 import net.ai.chatbot.utils.VectorDatabaseUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
-import org.springframework.ai.transformer.splitter.TextSplitter;
-import org.springframework.ai.transformer.splitter.TokenTextSplitter;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.redis.connection.stream.ObjectRecord;
 import org.springframework.data.redis.stream.StreamListener;
-import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
 
-@Service
+@AllArgsConstructor
+@Slf4j
 public class RedisWebsiteCrawlMessageProcessor implements StreamListener<String, ObjectRecord<String, WebsiteTrainEvent>> {
 
-    private Logger log = LoggerFactory.getLogger(RedisWebsiteCrawlMessageProcessor.class);
-
     private final PineconeService pineconeService;
-
-    public RedisWebsiteCrawlMessageProcessor(PineconeService pineconeService) {
-        this.pineconeService = pineconeService;
-    }
+    private final MongoTemplate mongoTemplate;
 
     @Override
     public void onMessage(ObjectRecord<String, WebsiteTrainEvent> record) {
@@ -42,9 +38,20 @@ public class RedisWebsiteCrawlMessageProcessor implements StreamListener<String,
                                 "Page Title", o.title()
                         ));
 
+                WebsiteTrainEvent trainEvent = record.getValue();
+
                 pineconeService.storeDocument(
-                        VectorDatabaseUtils.getNameSpace(record.getValue().email(), "project"),
+                        VectorDatabaseUtils.getNameSpace(trainEvent.email(), trainEvent.projectName()),
                         documents);
+
+                ProjectTrainingInfo trainingInfo = ProjectTrainingInfo.builder()
+                        .projectName(trainEvent.projectName())
+                        .projectId(trainEvent.projectId())
+                        .childPageUrl(o.url())
+                        .created(new Date())
+                        .build();
+
+                mongoTemplate.save(trainingInfo);
 
             });
         } catch (Exception e) {

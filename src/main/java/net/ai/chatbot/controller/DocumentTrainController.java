@@ -1,6 +1,7 @@
 package net.ai.chatbot.controller;
 
 
+import lombok.AllArgsConstructor;
 import net.ai.chatbot.service.training.ChatBotTrainingService;
 import org.apache.tika.exception.TikaException;
 import org.springframework.http.ResponseEntity;
@@ -14,13 +15,10 @@ import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/openai")
+@AllArgsConstructor
 public class DocumentTrainController {
 
     private final ChatBotTrainingService chatBotTrainingService;
-
-    public DocumentTrainController(ChatBotTrainingService chatBotTrainingService) {
-        this.chatBotTrainingService = chatBotTrainingService;
-    }
 
     @PostMapping("/train")
     public ResponseEntity<String> handleFormSubmission(
@@ -30,20 +28,24 @@ public class DocumentTrainController {
 
         try {
 
-            if (webSite != null && webSite.length() > 0) {
-                chatBotTrainingService.handleWebsiteUrlTraining(webSite);
-
-            } else if (description != null && description.length() > 0) {
-                chatBotTrainingService.handleTextBasedTraining(description);
-
-            } else if (file != null && !file.isEmpty()) {
-                chatBotTrainingService.handleFileTraining(file);
-            }
+//            initiateTrainingChatBot(webSite, description, file);
 
             return ResponseEntity.ok("Form submitted successfully!");
 
-        } catch (IOException | TikaException e) {
+        } catch (Exception e) {
             return ResponseEntity.internalServerError().body("Error processing file");
         }
+    }
+
+    private void initiateTrainingChatBot(String webSite, String description, MultipartFile file) throws IOException, TikaException {
+//        if (webSite != null && webSite.length() > 0) {
+//            chatBotTrainingService.handleWebsiteUrlTraining(webSite, "project");
+//
+//        } else if (description != null && description.length() > 0) {
+//            chatBotTrainingService.handleTextBasedTraining(description, "project");
+//
+//        } else if (file != null && !file.isEmpty()) {
+//            chatBotTrainingService.handleFileTraining(file, "project");
+//        }
     }
 }

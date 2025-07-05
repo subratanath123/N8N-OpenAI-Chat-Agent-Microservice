@@ -7,6 +7,7 @@ import net.ai.chatbot.service.redis.RedisWebsiteCrawlMessageProcessor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
@@ -82,7 +83,7 @@ public class RedisConfig {
     }
 
     @Bean
-    public Subscription subscription(RedisConnectionFactory connectionFactory, PineconeService pineconeService) throws UnknownHostException {
+    public Subscription subscription(RedisConnectionFactory connectionFactory, PineconeService pineconeService, MongoTemplate mongoTemplate) throws UnknownHostException {
 
         redisConsumerGroupService.createConsumerGroupIfNotExists(connectionFactory, TRAIN_WEBSITE_EVENT_STREAM, REDIS_STREAM_SERVER_GROUP);
 
@@ -102,15 +103,16 @@ public class RedisConfig {
 
         Subscription subscription =
                 container.receive(Consumer.from(REDIS_STREAM_SERVER_GROUP, InetAddress.getLocalHost().getHostName()),
-                        streamOffset, purchaseStreamListener(pineconeService));
+                        streamOffset, purchaseStreamListener(pineconeService, mongoTemplate));
 
         container.start();
         return subscription;
     }
 
     @Bean
-    public StreamListener<String, ObjectRecord<String, WebsiteTrainEvent>> purchaseStreamListener(PineconeService pineconeService) {
+    public StreamListener<String, ObjectRecord<String, WebsiteTrainEvent>> purchaseStreamListener(PineconeService pineconeService,
+                                                                                                  MongoTemplate mongoTemplate) {
         // handle message from stream
-        return new RedisWebsiteCrawlMessageProcessor(pineconeService);
+        return new RedisWebsiteCrawlMessageProcessor(pineconeService, mongoTemplate);
     }
 }
