@@ -43,12 +43,17 @@ public class OpenAiService {
         try {
             // Step 1: Add system role with initial instruction
             chatMessages.add(new Message("system",
-                    "You are a helpful AI assistant. Use the previous chat history with roles user and assistant," +
-                            " which will be provided in the request body," +
-                            " along with the knowledge base to generate a context-aware " +
-                            "and informative response. First, analyze the user's prior " +
-                            "messages to understand the context, then incorporate relevant " +
-                            "information from the knowledge base."
+                    "You are an expert AI assistant. You help users by answering questions strictly based on the provided context, which comes from a trusted company knowledge base.\n" +
+                            "\n" +
+                            "Follow these rules:\n" +
+                            "- Try to Answer user's query using the Knowledge Base with role system and also based on chat conversation.\n" +
+                            "- Be concise, professional, and helpful.\n" +
+                            "- Dont include the sentence like, Based on the provided knowledge base. Just answer the question and followup\n" +
+                            "- Do NOT make up answers or rely on external knowledge.\n" +
+                            "- If you provide any links then make it clickable.\n" +
+                            "- Response should be like bullet points\n" +
+                            "- If the user asks a follow-up, use previous context unless it contradicts the new context.\n" +
+                            "- You are not a general assistant, only a knowledge assistant."
             ));
 
             // Step 4: Add knowledge base snippets as system messages
@@ -60,11 +65,12 @@ public class OpenAiService {
 
             for (ChatMessage msg : reversedHistory) {
                 String role = msg.getSenderEmail().startsWith("chatbot") ? "assistant" : "user";
-                chatMessages.add(new Message(role, "previous chat conversation: ".concat(msg.getContent())));
+                chatMessages.add(new Message(role, "previous chat knowledge base: ".concat(msg.getContent())));
             }
 
             // Step 3: Add the current user prompt
-            chatMessages.add(new Message("user", "Answer the query: " + prompt));
+            chatMessages.add(new Message("user", "User's Query: " + prompt));
+
 
             // Step 5: Build and send the request
             request

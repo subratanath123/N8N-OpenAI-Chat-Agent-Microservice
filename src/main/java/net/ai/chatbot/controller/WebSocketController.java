@@ -20,6 +20,7 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import static net.ai.chatbot.utils.VectorDatabaseUtils.getNameSpace;
 
@@ -78,13 +79,16 @@ public class WebSocketController {
 
             VectorStore knowledgeBaseVectorStore = pineconeVectorStoreFactory.createForNamespace(getNameSpace(chatMessage.getSenderEmail(), project.getProjectName()));
 
+            List<ChatMessage> lastChatMessages = chatDao.getLastChatMessages(userEmail, chatMessage.getSenderEmail(), 0, 10).getContent();
+
+            String previousChatContents = lastChatMessages.stream().map(chat -> chat.getSenderEmail().concat(":").concat(chat.getContent()))
+                    .collect(Collectors.joining(","));
+
             List<Document> knowledgeBaseResults = knowledgeBaseVectorStore
                     .similaritySearch(SearchRequest.builder()
-                            .query(chatMessage.getContent())
+                            .query(previousChatContents.concat(", user question: ").concat(chatMessage.getContent()))
                             .topK(10)
                             .build());
-
-            List<ChatMessage> lastChatMessages = chatDao.getLastChatMessages(userEmail, chatMessage.getSenderEmail(), 0, 10).getContent();
 
             ChatMessage botReplayMessage = ChatMessage
                     .builder()
