@@ -65,18 +65,14 @@ public class WebSocketController {
 
         log.info("sending message: source: {}", sessionId);
 
-        String chatHistoryId = chatDao.getChatHistoryId(userEmail, chatMessage.getSenderEmail());
+        // Use projectId-aware methods
+        String chatHistoryId = chatDao.getChatHistory(userEmail, chatMessage.getSenderEmail(), projectId).getId();
         chatDao.saveChatHistory(chatHistoryId, chatMessage);
 
-        chatDao.getChatHistory(userEmail, chatMessage.getSenderEmail());
-
-        //Sending self message to self chatbox
         simpMessagingTemplate.convertAndSend("/queue/reply-" + chatMessage.getSenderEmail(), chatMessage);
 
-        //Sending other users/chabots message to self chatbox
         if (userEmail.equals("chatbot")) {
             Project project = projectDao.findById(projectId);
-
             VectorStore knowledgeBaseVectorStore = pineconeVectorStoreFactory.createForNamespace(getNameSpace(chatMessage.getSenderEmail(), project.getProjectName()));
 
             List<ChatMessage> lastChatMessages = chatDao.getLastChatMessages(userEmail, chatMessage.getSenderEmail(), 0, 10).getContent();
@@ -97,11 +93,8 @@ public class WebSocketController {
                     .created(new Date())
                     .build();
 
-            simpMessagingTemplate.convertAndSend("/queue/reply-" + chatMessage.getSenderEmail(), botReplayMessage
-            );
-
+            simpMessagingTemplate.convertAndSend("/queue/reply-" + chatMessage.getSenderEmail(), botReplayMessage);
             chatDao.saveChatHistory(chatHistoryId, botReplayMessage);
-
         } else {
             simpMessagingTemplate.convertAndSend("/queue/reply-" + userEmail, chatMessage);
         }

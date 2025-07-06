@@ -114,6 +114,52 @@ public class ChatDao {
                 });
     }
 
+    public ChatHistory getChatHistoryWithMessages(String userOneEmail, String userTwoEmail, String projectId) {
+        String userOneId = userDao.fetchUserId(userOneEmail);
+        String userTwoId = userDao.fetchUserId(userTwoEmail);
+
+        Query query = new Query().addCriteria(
+                new Criteria().andOperator(
+                        Criteria.where("users._id").in(userOneId),
+                        Criteria.where("users._id").in(userTwoId),
+                        Criteria.where("projectId").is(projectId)
+                )
+        );
+        query.fields()
+                .include("_id")
+                .include("messages")
+                .include("projectId");
+        return mongoTemplate.findOne(query, ChatHistory.class);
+    }
+
+    public ChatHistory getChatHistory(String userOneEmail, String userTwoEmail, String projectId) {
+        String userOneId = userDao.fetchUserId(userOneEmail);
+        String userTwoId = userDao.fetchUserId(userTwoEmail);
+
+        Query query = new Query()
+                .addCriteria(
+                        new Criteria()
+                                .andOperator(
+                                        Criteria.where("users._id").in(userOneId),
+                                        Criteria.where("users._id").in(userTwoId),
+                                        Criteria.where("projectId").is(projectId)
+                                )
+                );
+        query.fields().include("id").include("projectId");
+        return Optional.ofNullable(mongoTemplate.findOne(query, ChatHistory.class))
+                .orElseGet(() -> {
+                    ChatHistory chatHistory = ChatHistory.builder()
+                            .users(asList(User.builder().id(userOneId).build(), User.builder().id(userTwoId).build()))
+                            .projectId(projectId)
+                            .build();
+                    return mongoTemplate.save(chatHistory);
+                });
+    }
+
+    public List<ChatHistory> getChatHistoriesByProjectId(String projectId) {
+        Query query = new Query(Criteria.where("projectId").is(projectId));
+        return mongoTemplate.find(query, ChatHistory.class);
+    }
 
     public ChatHistory getChatHistory(String id) {
         return mongoTemplate.findById(id, ChatHistory.class);

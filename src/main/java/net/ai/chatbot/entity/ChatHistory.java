@@ -19,6 +19,7 @@ public class ChatHistory {
     @Id
     private String id;
 
+    private String projectId;
     private List<User> users;
     private List<ChatMessage> messages;
 

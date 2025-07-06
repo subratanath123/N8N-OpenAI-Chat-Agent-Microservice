@@ -53,7 +53,9 @@ public class OpenAiService {
                             "- If you provide any links then make it clickable.\n" +
                             "- Response should be like bullet points\n" +
                             "- If the user asks a follow-up, use previous context unless it contradicts the new context.\n" +
-                            "- You are not a general assistant, only a knowledge assistant."
+                            "- You are not a general assistant, only a knowledge assistant.\n" +
+                            "- Also ask followup question to engage user.\n" +
+                            "- Answer the questions as human is replying"
             ));
 
             // Step 4: Add knowledge base snippets as system messages
