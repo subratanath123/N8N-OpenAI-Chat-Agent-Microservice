@@ -11,6 +11,12 @@ java {
 	sourceCompatibility = '17'
 }
 
+bootJar {
+	archiveBaseName = 'JadeAiBot'
+	archiveVersion = ''
+	archiveClassifier = ''
+}
+
 repositories {
 	mavenCentral()
 	maven { url 'https://repo.spring.io/milestone' }

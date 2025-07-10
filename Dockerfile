@@ -3,6 +3,6 @@ COPY . .
 RUN ./gradlew build
 
 FROM openjdk:17.0.1-jdk-slim
-COPY --from=build build/libs/One-Dollar-Customer-0.0.1-SNAPSHOT.jar One-Dollar-Customer.jar
+COPY --from=build build/libs/JadeAiBot.jar JadeAiBot.jar
 EXPOSE 8000
-ENTRYPOINT ["java","-jar","One-Dollar-Customer.jar"]
+ENTRYPOINT ["java","-jar","JadeAiBot.jar"]
