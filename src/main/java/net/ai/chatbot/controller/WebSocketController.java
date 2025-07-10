@@ -75,7 +75,7 @@ public class WebSocketController {
             Project project = projectDao.findById(projectId);
             VectorStore knowledgeBaseVectorStore = pineconeVectorStoreFactory.createForNamespace(getNameSpace(chatMessage.getSenderEmail(), project.getProjectName()));
 
-            List<ChatMessage> lastChatMessages = chatDao.getLastChatMessages(userEmail, chatMessage.getSenderEmail(), 0, 10).getContent();
+            List<ChatMessage> lastChatMessages = chatDao.getLastChatMessages(userEmail, chatMessage.getSenderEmail(), project.getId(), 0, 10).getContent();
 
             String previousChatContents = lastChatMessages.stream().map(chat -> chat.getSenderEmail().concat(":").concat(chat.getContent()))
                     .collect(Collectors.joining(","));

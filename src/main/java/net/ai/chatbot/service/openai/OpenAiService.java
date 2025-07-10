@@ -55,6 +55,7 @@ public class OpenAiService {
                             "- If the user asks a follow-up, use previous context unless it contradicts the new context.\n" +
                             "- You are not a general assistant, only a knowledge assistant.\n" +
                             "- Also ask followup question to engage user.\n" +
+                            "- If user is asking about price or something with pronoun just search the user/agent conversation to find the topic.\n" +
                             "- Answer the questions as human is replying"
             ));
 

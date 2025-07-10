@@ -35,11 +35,11 @@ public class ChatDao {
     public Page<ChatMessage> getLastChatMessages(
             String userOneEmail,
             String userTwoEmail,
-            int page,
+            String projectId, int page,
             int size
     ) {
         // 1. Fetch or create the ChatHistory between the two users
-        ChatHistory chatHistory = getChatHistoryWithMessages(userOneEmail, userTwoEmail);
+        ChatHistory chatHistory = getChatHistoryWithMessages(userOneEmail, userTwoEmail, projectId);
 
         if (chatHistory == null) {
             return null;
