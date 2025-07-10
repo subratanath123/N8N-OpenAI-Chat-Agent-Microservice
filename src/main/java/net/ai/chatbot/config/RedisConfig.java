@@ -82,31 +82,36 @@ public class RedisConfig {
         return template;
     }
 
-    @Bean
-    public Subscription subscription(RedisConnectionFactory connectionFactory, PineconeService pineconeService, MongoTemplate mongoTemplate) throws UnknownHostException {
+    @Bean(destroyMethod = "stop")
+    public StreamMessageListenerContainer<String, ObjectRecord<String, WebsiteTrainEvent>> streamMessageListenerContainer(RedisConnectionFactory connectionFactory) {
 
-        redisConsumerGroupService.createConsumerGroupIfNotExists(connectionFactory, TRAIN_WEBSITE_EVENT_STREAM, REDIS_STREAM_SERVER_GROUP);
+        StreamMessageListenerContainer.StreamMessageListenerContainerOptions<String, ObjectRecord<String, WebsiteTrainEvent>> options =
+                StreamMessageListenerContainer.StreamMessageListenerContainerOptions
+                        .builder()
+                        .pollTimeout(Duration.ofMillis(100))
+                        .targetType(WebsiteTrainEvent.class)
+                        .build();
+
+        return StreamMessageListenerContainer.create(connectionFactory, options);
+    }
+
+    @Bean
+    public Subscription websiteTrainStreamSubscription(
+            StreamMessageListenerContainer<String, ObjectRecord<String, WebsiteTrainEvent>> container,
+            PineconeService pineconeService,
+            MongoTemplate mongoTemplate
+    ) throws UnknownHostException {
+
+        redisConsumerGroupService.createConsumerGroupIfNotExists(
+                redisConnectionFactory(), TRAIN_WEBSITE_EVENT_STREAM, REDIS_STREAM_SERVER_GROUP);
 
         StreamOffset<String> streamOffset = StreamOffset.create(TRAIN_WEBSITE_EVENT_STREAM, ReadOffset.lastConsumed());
 
-        StreamMessageListenerContainer.StreamMessageListenerContainerOptions<String,
-                ObjectRecord<String, WebsiteTrainEvent>> options = StreamMessageListenerContainer
-                .StreamMessageListenerContainerOptions
-                .builder()
-                .pollTimeout(Duration.ofMillis(100))
-                .targetType(WebsiteTrainEvent.class)
-                .build();
-
-        StreamMessageListenerContainer<String, ObjectRecord<String, WebsiteTrainEvent>>  container =
-                StreamMessageListenerContainer
-                        .create(connectionFactory, options);
-
-        Subscription subscription =
-                container.receive(Consumer.from(REDIS_STREAM_SERVER_GROUP, InetAddress.getLocalHost().getHostName()),
-                        streamOffset, purchaseStreamListener(pineconeService, mongoTemplate));
-
-        container.start();
-        return subscription;
+        return container.receive(
+                Consumer.from(REDIS_STREAM_SERVER_GROUP, InetAddress.getLocalHost().getHostName()),
+                streamOffset,
+                purchaseStreamListener(pineconeService, mongoTemplate)
+        );
     }
 
     @Bean
