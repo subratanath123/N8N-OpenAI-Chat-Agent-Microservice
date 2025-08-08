@@ -2,7 +2,7 @@ package net.ai.chatbot.service.openai;
 
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.ChatMessage;
-import net.ai.chatbot.dto.ChatRequest;
+import net.ai.chatbot.dto.ChatInput;
 import net.ai.chatbot.dto.ChatResponse;
 import net.ai.chatbot.dto.Message;
 import org.springframework.ai.document.Document;
@@ -12,15 +12,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Service
 @Slf4j
-public class OpenAiService {
+public class OpenAiService implements ChatService {
 
     @Autowired
-    private RestTemplate restTemplate;
+    private RestTemplate pineconeRestTemplate;
 
     @Value("${openai.model}")
     private String model;
@@ -34,11 +33,17 @@ public class OpenAiService {
     @Value("${openai.api.url}")
     private String apiUrl;
 
+    @Override
+    public ChatResponse chat(String message, String sessionId) {
+        throw new RuntimeException("You must provide knowledge base or recent chat history to openai");
+    }
+
+    @Override
     public ChatResponse chat(String prompt, List<Document> knowledgeBaseResults, List<ChatMessage> recentChatHistory) {
         ChatResponse chatResponse = null;
         List<Message> chatMessages = new ArrayList<>();
 
-        ChatRequest.ChatRequestBuilder request = ChatRequest.builder();
+        ChatInput.ChatInputBuilder request = ChatInput.builder();
 
         try {
             // Step 1: Add system role with initial instruction
@@ -50,6 +55,7 @@ public class OpenAiService {
                             "- Be concise, professional, and helpful.\n" +
                             "- Dont include the sentence like, Based on the provided knowledge base. Just answer the question and followup\n" +
                             "- Do NOT make up answers or rely on external knowledge.\n" +
+                            "- Reply with multiple small paragraphs.\n" +
                             "- If you provide any links then make it clickable.\n" +
                             "- Response should be like bullet points\n" +
                             "- If the user asks a follow-up, use previous context unless it contradicts the new context.\n" +
@@ -82,7 +88,7 @@ public class OpenAiService {
                     .n(maxCompletions)
                     .temperature(temperature);
 
-            chatResponse = restTemplate.postForObject("https://api.openai.com/v1/chat/completions", request.build(), ChatResponse.class);
+            chatResponse = pineconeRestTemplate.postForObject("https://api.openai.com/v1/chat/completions", request.build(), ChatResponse.class);
 
         } catch (Exception e) {
             log.error("error : " + e.getMessage());

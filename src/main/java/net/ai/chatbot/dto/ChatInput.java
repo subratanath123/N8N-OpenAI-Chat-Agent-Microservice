@@ -11,10 +11,12 @@ import java.util.List;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatRequest {
+public class ChatInput {
 
+    private String sessionId;
     private String model;
     private List<Message> messages;
+    private Message message;
     private int n;
     private double temperature;
 

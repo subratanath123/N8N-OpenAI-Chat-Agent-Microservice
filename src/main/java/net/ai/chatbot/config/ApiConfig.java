@@ -4,15 +4,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import net.ai.chatbot.service.openai.DomainService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.Ordered;
-import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.oauth2.server.resource.authentication.JwtIssuerAuthenticationManagerResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
-import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
-import org.springframework.web.filter.CorsFilter;
 
 import java.util.List;
 
@@ -22,23 +18,20 @@ public class ApiConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, DomainService domainService) throws Exception {
         http
-                .authorizeHttpRequests(authorize
-                                -> authorize
-//                        .requestMatchers("/v1/**")
-//                        .authenticated()
-                                .anyRequest()
-                                .permitAll()
-                ).cors(cors -> cors.configurationSource(corsConfigurationSource(domainService)))
-                .oauth2ResourceServer(oauth2
-                        -> oauth2.authenticationManagerResolver(authenticationManagerResolver())
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers("/v1/api/n8n/anonymous/**")
+                        .permitAll()
+                        .anyRequest().authenticated()
+                )
+                .cors(cors -> cors.configurationSource(corsConfigurationSource(domainService)))
+                .oauth2ResourceServer(oauth2 -> oauth2
+                        .jwt(jwt -> jwt
+                                .jwkSetUri("https://ruling-ferret-57.clerk.accounts.dev/.well-known/jwks.json")
+                        )
                 );
 
         return http.build();
-    }
-    
-    @Bean
-    public JwtIssuerAuthenticationManagerResolver authenticationManagerResolver() {
-        return JwtIssuerAuthenticationManagerResolver.fromTrustedIssuers("https://accounts.google.com");
     }
 
     @Bean

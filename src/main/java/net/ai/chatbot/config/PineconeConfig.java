@@ -3,7 +3,6 @@ package net.ai.chatbot.config;
 import net.ai.chatbot.override.OverridedOpenAiEmbeddingModel;
 import net.ai.chatbot.service.pinnecone.PineconeVectorStoreFactory;
 import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.ai.openai.OpenAiEmbeddingModel;
 import org.springframework.ai.openai.OpenAiEmbeddingOptions;
 import org.springframework.ai.openai.api.OpenAiApi;
 import org.springframework.ai.vectorstore.VectorStore;
@@ -11,10 +10,8 @@ import org.springframework.ai.vectorstore.pinecone.PineconeVectorStore;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
-import static org.springframework.ai.document.MetadataMode.ALL;
 import static org.springframework.ai.document.MetadataMode.EMBED;
 
 
@@ -74,7 +71,7 @@ public class PineconeConfig {
      * @return A RestTemplate configured with an interceptor to add an Authorization header.
      */
     @Bean
-    public RestTemplate restTemplate() {
+    public RestTemplate pineconeRestTemplate() {
 
         RestTemplate restTemplate = new RestTemplate();
 
