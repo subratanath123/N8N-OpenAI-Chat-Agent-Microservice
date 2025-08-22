@@ -5,9 +5,8 @@ services:
     region: oregon
     plan: free
     healthCheckPath: /actuator/health
-    healthCheckTimeout: 300
     autoDeploy: true
-    branch: main
+    branch: master
     envVars:
       - key: SPRING_PROFILES_ACTIVE
         value: dev
