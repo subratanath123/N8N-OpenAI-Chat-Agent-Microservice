@@ -12,16 +12,15 @@ RUN addgroup --system --gid 1001 appgroup && \
     adduser --system --uid 1001 --ingroup appgroup appuser
 USER appuser
 
-# Expose the port the app runs on
+# Expose the port dynamically
 EXPOSE 8000
 
 # Set environment variables for Render.com
-ENV PORT=8000
 ENV JAVA_OPTS="-Xmx512m -Xms256m"
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD curl -f http://localhost:8000/actuator/health || exit 1
+# Health check - use dynamic port
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
+    CMD curl -f http://0.0.0.0:8000/actuator/health || exit 1
 
-# Run the application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar --server.port=$PORT"]
+# Run the application - let Spring Boot read PORT from environment
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
