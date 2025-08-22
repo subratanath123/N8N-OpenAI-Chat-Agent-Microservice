@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: chat-api
+    env: docker
+    region: oregon
+    plan: free
+    healthCheckPath: /actuator/health
+    healthCheckTimeout: 300
+    autoDeploy: true
+    branch: main
+    envVars:
+      - key: SPRING_PROFILES_ACTIVE
+        value: dev
+      - key: JAVA_OPTS
+        value: "-Xmx512m -Xms256m"
+      - key: TZ
+        value: UTC
+      - key: LOGGING_LEVEL_ROOT
+        value: INFO
+      - key: LOGGING_LEVEL_NET_AI_CHATBOT
+        value: DEBUG

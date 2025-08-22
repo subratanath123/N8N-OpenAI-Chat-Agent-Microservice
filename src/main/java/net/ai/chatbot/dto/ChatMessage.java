@@ -17,6 +17,7 @@ public class ChatMessage {
     private String senderEmail;
     private String attachmentLink;
     private Date created;
+    private String role; // Added for frontend compatibility (user, assistant, system)
 
     @Transient
     private String token;

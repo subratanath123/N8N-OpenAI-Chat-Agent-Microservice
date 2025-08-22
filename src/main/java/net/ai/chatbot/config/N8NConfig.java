@@ -34,6 +34,7 @@ public class N8NConfig {
                 if (authHeader != null) {
                     request.getHeaders().add("authenticated", "true");
                     request.getHeaders().add("email", AuthUtils.getEmail());
+                    request.getHeaders().add("conversationid", currentRequest.getHeader("sessionId"));
                 }
             }
 

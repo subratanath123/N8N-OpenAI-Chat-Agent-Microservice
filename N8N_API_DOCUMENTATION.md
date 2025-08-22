@@ -16,6 +16,7 @@ A generic input class that can handle different types of messages for N8N workfl
 - Built-in workflow configuration
 - Additional parameters support
 - Session management
+- Optional file attachments support
 - Builder pattern for easy construction
 
 **Usage:**
@@ -30,6 +31,13 @@ params.put("temperature", 0.7);
 N8NChatInput<Message> input = N8NChatInput.of(message)
     .withWorkflow("workflow-id", "webhook-url")
     .withAdditionalParams(params);
+
+// With attachments
+List<Attachment> attachments = Arrays.asList(attachment);
+N8NChatInput<Message> inputWithAttachments = N8NChatInput.of(message)
+    .withWorkflow("workflow-id", "webhook-url")
+    .withAdditionalParams(params)
+    .withAttachments(attachments);
 ```
 
 #### 2. N8NChatResponse<T>
@@ -49,6 +57,48 @@ N8NChatResponse<String> response = N8NChatResponse.success("Response data");
 
 // Error response
 N8NChatResponse<String> response = N8NChatResponse.error("Error message");
+```
+
+#### 3. Attachment
+A DTO class for representing file attachments in chat messages.
+
+**Fields:**
+- `name`: File name (e.g., "screenshot.png")
+- `size`: File size in bytes
+- `type`: MIME type (e.g., "image/png", "application/pdf")
+- `base64`: Base64-encoded file content
+
+**Usage:**
+```java
+Attachment attachment = Attachment.builder()
+    .name("document.pdf")
+    .size(102400L)
+    .type("application/pdf")
+    .base64("JVBERi0xLjQKMSAwIG9iago8PAovVHlwZSAvQ2F0YWxvZwovUGFnZXMgMiAwIFIKPj4KZW5kb2JqCg==")
+    .build();
+```
+
+#### 4. ChatRequest
+A DTO class for chat requests that include attachments and additional parameters.
+
+**Fields:**
+- `message`: User's message content
+- `attachments`: List of file attachments
+- `sessionId`: Session identifier
+- `webhookUrl`: N8N webhook URL
+- `workflowId`: N8N workflow identifier
+- `additionalParams`: Additional parameters for the workflow
+
+**Usage:**
+```java
+ChatRequest request = ChatRequest.builder()
+    .message("Please analyze this document")
+    .attachments(Arrays.asList(attachment))
+    .sessionId("session_123")
+    .workflowId("default-workflow")
+    .webhookUrl("http://localhost:5678/webhook/123")
+    .additionalParams(Map.of("temperature", 0.7, "model", "gpt-4"))
+    .build();
 ```
 
 ### Services
@@ -99,17 +149,96 @@ curl -X POST "http://localhost:8080/v1/api/n8n/chat?workflowId=my-workflow&webho
 - `webhookUrl` (query): N8N webhook URL
 - `messages` (body): Array of message objects
 
-**Example:**
-```bash
-curl -X POST "http://localhost:8080/v1/api/n8n/chat/batch?workflowId=my-workflow&webhookUrl=http://localhost:5678/webhook/123" \
-  -H "Content-Type: application/json" \
-  -d '[
-    {"role": "system", "content": "You are a helpful assistant"},
-    {"role": "user", "content": "Hello, how are you?"}
-  ]'
+#### 3. Send Custom Input with Optional Attachments
+**POST** `/chat/custom`
+
+**Description:** Sends a custom chat input with full control over the request. Now supports optional file attachments - takes the first attachment if present and includes it in the additional parameters sent to N8N.
+
+**Request Body:**
+```json
+{
+  "message": {
+    "role": "user",
+    "content": "Please analyze this screenshot"
+  },
+  "attachments": [
+    {
+      "name": "Screenshot from 2025-08-10 22-08-43.png",
+      "size": 81442,
+      "type": "image/png",
+      "base64": "iVBORw0KGgoAAAANSUhEUgAABlEAAAK8CAYAAAB/f5kAAAAAB..."
+    }
+  ],
+  "sessionId": "session_1754764089953_mmwzjbuh2",
+  "webhookUrl": "http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea",
+  "workflowId": "default-workflow",
+  "additionalParams": {
+    "temperature": 0.7,
+    "systemPrompt": "You are a helpful AI assistant.",
+    "model": "gpt-4"
+  }
+}
 ```
 
-#### 3. Send Message with Session
+**Response:** The first attachment from the list is automatically extracted and sent to N8N in the `additionalParams` with the key `"attachment"`. The attachment data includes:
+
+- `binary`: The actual file data as binary bytes (converted from base64)
+- `fileName`: Original filename
+- `fileSize`: File size in bytes  
+- `mimeType`: MIME type (e.g., "image/png", "application/pdf")
+
+**Example of what N8N receives:**
+```json
+{
+  "message": {
+    "role": "user",
+    "content": "Please analyze this screenshot"
+  },
+  "additionalParams": {
+    "temperature": 0.7,
+    "systemPrompt": "You are a helpful AI assistant.",
+    "model": "gpt-4",
+    "attachment": {
+      "binary": [binary_data_bytes],
+      "fileName": "Screenshot from 2025-08-10 22-08-43.png",
+      "fileSize": 81442,
+      "mimeType": "image/png"
+    }
+  },
+  "workflowId": "default-workflow",
+  "webhookUrl": "http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea"
+}
+```
+
+**Example:**
+```bash
+curl -X POST "http://localhost:8080/v1/api/n8n/authenticated/chat/custom" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "message": {
+      "role": "user",
+      "content": "Please analyze this screenshot"
+    },
+    "attachments": [
+      {
+        "name": "screenshot.png",
+        "size": 81442,
+        "type": "image/png",
+        "base64": "iVBORw0KGgoAAAANSUhEUgAABlEAAAK8CAYAAAB/f5kAAAAAB..."
+      }
+    ],
+    "workflowId": "default-workflow",
+    "webhookUrl": "http://localhost:5678/webhook/123",
+    "additionalParams": {
+      "temperature": 0.7,
+      "model": "gpt-4"
+    }
+  }'
+```
+
+**Note:** The `attachments` field is optional. If no attachments are provided, the request will be processed normally without attachment processing. The N8N service automatically processes attachments, converts base64 data to binary bytes, and formats them properly for N8N workflows.
+
+#### 4. Send Message with Session
 **POST** `/chat/session`
 
 **Parameters:**
@@ -118,7 +247,7 @@ curl -X POST "http://localhost:8080/v1/api/n8n/chat/batch?workflowId=my-workflow
 - `sessionId` (query, optional): Session identifier (uses authenticated user email if not provided)
 - `message` (body): Message object
 
-#### 4. Send Message with Parameters
+#### 5. Send Message with Parameters
 **POST** `/chat/params`
 
 **Parameters:**
@@ -127,24 +256,7 @@ curl -X POST "http://localhost:8080/v1/api/n8n/chat/batch?workflowId=my-workflow
 - `message` (body): Message object
 - `additionalParams` (body, optional): Additional parameters map
 
-#### 5. Send Custom Input
-**POST** `/chat/custom`
 
-**Parameters:**
-- `customInput` (body): Complete N8NChatInput object
-
-**Example:**
-```bash
-curl -X POST "http://localhost:8080/v1/api/n8n/chat/custom" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "message": {"role": "user", "content": "Hello"},
-    "workflowId": "my-workflow",
-    "webhookUrl": "http://localhost:5678/webhook/123",
-    "sessionId": "user-session-123",
-    "additionalParams": {"temperature": 0.7}
-  }'
-```
 
 #### 6. Health Check
 **GET** `/health/{workflowId}`

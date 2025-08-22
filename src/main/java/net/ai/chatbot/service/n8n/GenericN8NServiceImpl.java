@@ -5,9 +5,10 @@ import net.ai.chatbot.dto.n8n.N8NChatInput;
 import net.ai.chatbot.dto.n8n.N8NChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestTemplate;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -22,10 +23,10 @@ public class GenericN8NServiceImpl<T, R> implements GenericN8NService<T, R> {
     public N8NChatResponse<R> sendMessage(T message, String workflowId, String webhookUrl) {
         try {
             log.info("Sending message to N8N workflow: {}", workflowId);
-            
+
             N8NChatInput<T> input = N8NChatInput.<T>of(message)
                     .withWorkflow(workflowId, webhookUrl);
-            
+
             return sendCustomInput(input);
         } catch (Exception e) {
             log.error("Error sending message to N8N workflow {}: {}", workflowId, e.getMessage());
@@ -37,10 +38,10 @@ public class GenericN8NServiceImpl<T, R> implements GenericN8NService<T, R> {
     public N8NChatResponse<R> sendMessages(List<T> messages, String workflowId, String webhookUrl) {
         try {
             log.info("Sending {} messages to N8N workflow: {}", messages.size(), workflowId);
-            
+
             N8NChatInput<T> input = N8NChatInput.<T>of(messages)
                     .withWorkflow(workflowId, webhookUrl);
-            
+
             return sendCustomInput(input);
         } catch (Exception e) {
             log.error("Error sending messages to N8N workflow {}: {}", workflowId, e.getMessage());
@@ -57,27 +58,42 @@ public class GenericN8NServiceImpl<T, R> implements GenericN8NService<T, R> {
             }
 
             log.info("Sending custom input to N8N webhook: {}", webhookUrl);
-            
+
+            // Process attachments if present - extract first attachment data
+            N8NChatInput<T> processedInput = input;
+
+            // Log the final request body for debugging
+            log.info("Final N8N request body: sessionId={}, model={}, message={}, messages={}, attachments={}, additionalParams={}",
+                    processedInput.getSessionId(), processedInput.getModel(), processedInput.getMessage(),
+                    processedInput.getMessages(), processedInput.getAttachments(), processedInput.getAdditionalParams());
+
+            // Additional logging for message details
+            if (processedInput.getMessage() instanceof net.ai.chatbot.dto.Message) {
+                net.ai.chatbot.dto.Message message = (net.ai.chatbot.dto.Message) processedInput.getMessage();
+                log.info("Message details: role={}, content={}, messageAttachments={}",
+                        message.getRole(), message.getContent(), message.getAttachments());
+            }
+
             // Use Object.class to get the raw response first
-            Object rawResponse = n8nRestTemplate.postForObject(webhookUrl, input, Object.class);
-            
+            Object rawResponse = n8nRestTemplate.postForObject(webhookUrl, processedInput, Object.class);
+
             if (rawResponse == null) {
                 return N8NChatResponse.<R>error("NULL_RESPONSE", "Received null response from N8N");
             }
-            
+
             log.info("Raw N8N response: {}", rawResponse);
-            
+
             // Create a response object and populate it based on the raw response
             N8NChatResponse<R> response = new N8NChatResponse<>();
             response.setSuccess(true);
             response.setWorkflowId(input.getWorkflowId());
             response.setTimestamp(System.currentTimeMillis());
-            
+
             // Handle different response formats
             if (rawResponse instanceof Map) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> responseMap = (Map<String, Object>) rawResponse;
-                
+
                 // Check for common N8N response fields
                 if (responseMap.containsKey("output")) {
                     response.setOutput((String) responseMap.get("output"));
@@ -109,9 +125,9 @@ public class GenericN8NServiceImpl<T, R> implements GenericN8NService<T, R> {
                 // For other types, try to convert to string
                 response.setOutput(rawResponse.toString());
             }
-            
+
             return response;
-            
+
         } catch (RestClientException e) {
             log.error("HTTP error calling N8N webhook: {}", e.getMessage());
             return N8NChatResponse.<R>error("HTTP_ERROR", "HTTP error calling N8N webhook: " + e.getMessage());
@@ -125,11 +141,11 @@ public class GenericN8NServiceImpl<T, R> implements GenericN8NService<T, R> {
     public N8NChatResponse<R> sendMessageWithSession(T message, String sessionId, String workflowId, String webhookUrl) {
         try {
             log.info("Sending message with session {} to N8N workflow: {}", sessionId, workflowId);
-            
+
             N8NChatInput<T> input = N8NChatInput.<T>of(message)
                     .withWorkflow(workflowId, webhookUrl);
             input.setSessionId(sessionId);
-            
+
             return sendCustomInput(input);
         } catch (Exception e) {
             log.error("Error sending message with session to N8N workflow {}: {}", workflowId, e.getMessage());
@@ -137,15 +153,24 @@ public class GenericN8NServiceImpl<T, R> implements GenericN8NService<T, R> {
         }
     }
 
+    /**
+     * Helper method to create a list with a single message
+     */
+    private List<T> createSingleMessageList(T message) {
+        List<T> list = new ArrayList<>();
+        list.add(message);
+        return list;
+    }
+
     @Override
     public N8NChatResponse<R> sendMessageWithParams(T message, Map<String, Object> additionalParams, String workflowId, String webhookUrl) {
         try {
             log.info("Sending message with params to N8N workflow: {}", workflowId);
-            
+
             N8NChatInput<T> input = N8NChatInput.<T>of(message)
                     .withWorkflow(workflowId, webhookUrl)
                     .withAdditionalParams(additionalParams);
-            
+
             return sendCustomInput(input);
         } catch (Exception e) {
             log.error("Error sending message with params to N8N workflow {}: {}", workflowId, e.getMessage());

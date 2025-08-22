@@ -63,6 +63,7 @@ dependencies {
 
 	implementation("com.goikosoft.crawler4j:crawler4j:4.5.11")
 	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
 dependencyManagement {
