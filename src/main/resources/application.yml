@@ -1,0 +1,36 @@
+server:
+  port: ${PORT:8080}
+
+spring:
+  application:
+    name: OpenAiChatService
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false
+      fail-fast: false
+  config:
+    import: optional:configserver:https://config-service-evs1.onrender.com
+
+# Disable Eureka by default for local development
+eureka:
+  client:
+    enabled: false
+
+# Actuator configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    org.springframework.cloud: WARN
+    net.ai.chatbot: DEBUG

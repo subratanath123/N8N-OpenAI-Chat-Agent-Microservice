@@ -1,5 +1,5 @@
 server:
-  port: 8000
+  port: 8080
   error:
     include-message: always
     include-binding-errors: always
@@ -23,9 +23,11 @@ spring:
         enabled: true
         service-id: ConfigService
       enabled: true
+      import-check:
+        enabled: false
 
   config:
-    import: "optional:configserver:http://143.198.58.6:8887"
+    import: optional:configserver:https://config-service-evs1.onrender.com
 
   autoconfigure:
     exclude:

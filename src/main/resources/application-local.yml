@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: OpenAiChatService
+  cloud:
+    config:
+      enabled: false
+      import-check:
+        enabled: false
+      fail-fast: false
+  config:
+    import: ""
+
+# Disable Eureka for local development
+eureka:
+  client:
+    enabled: false
+
+# Local logging
+logging:
+  level:
+    root: INFO
+    org.springframework: INFO
+    net.ai.chatbot: DEBUG
