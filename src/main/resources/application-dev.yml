@@ -27,7 +27,7 @@ spring:
         enabled: false
 
   config:
-    import: optional:configserver:https://config-service-evs1.onrender.com
+    import: "optional:configserver:http://143.198.58.6:8887"
 
   autoconfigure:
     exclude:
