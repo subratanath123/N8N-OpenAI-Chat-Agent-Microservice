@@ -1,8 +1,8 @@
 package net.ai.chatbot.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import net.ai.chatbot.dto.Message;
 import net.ai.chatbot.dto.Attachment;
+import net.ai.chatbot.dto.Message;
 import net.ai.chatbot.dto.n8n.N8NChatInput;
 import net.ai.chatbot.dto.n8n.N8NChatResponse;
 import net.ai.chatbot.service.n8n.GenericN8NService;
@@ -17,14 +17,12 @@ import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
-import org.springframework.web.multipart.MultipartHttpServletRequest;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
-import java.util.ArrayList;
 
 @Slf4j
 @RestController
