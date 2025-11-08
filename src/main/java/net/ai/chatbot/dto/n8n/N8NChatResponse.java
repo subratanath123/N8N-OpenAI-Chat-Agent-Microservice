@@ -19,7 +19,6 @@ public class N8NChatResponse<T> {
     private T data;
     private List<T> choices;
     private Map<String, Object> metadata;
-    private String workflowId;
     private long timestamp;
     private String errorCode;
     private String errorMessage;
@@ -71,12 +70,6 @@ public class N8NChatResponse<T> {
     // Builder method for metadata
     public N8NChatResponse<T> withMetadata(Map<String, Object> metadata) {
         this.metadata = metadata;
-        return this;
-    }
-
-    // Builder method for workflow ID
-    public N8NChatResponse<T> withWorkflowId(String workflowId) {
-        this.workflowId = workflowId;
         return this;
     }
     

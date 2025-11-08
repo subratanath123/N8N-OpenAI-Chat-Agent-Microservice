@@ -4,27 +4,23 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.bson.types.Binary;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
-
-import java.time.Instant;
 
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-@Document(collection = "n8n_chat_session_histories") // Adjust collection name as needed
-public class UserChatHistory {
-    
+@Document(collection = "uploaded_files")
+public class FileUpload {
+
     @Id
     private String id;
-    
     private String email;
-    private String conversationid;
-    private String userMessage;
-    private Instant createdAt;
-    private String aiMessage;
-    private String mode;
-    private boolean isAnonymous;
+    private String fileName;
+    private String contentType;
+    private byte[] data;
 
 }
+

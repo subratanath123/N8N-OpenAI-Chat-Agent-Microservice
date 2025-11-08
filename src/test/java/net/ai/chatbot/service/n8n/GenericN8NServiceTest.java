@@ -22,13 +22,13 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-class GenericN8NServiceImplTest {
+class GenericN8NServiceTest {
 
     @Mock
     private RestTemplate n8nRestTemplate;
 
     @InjectMocks
-    private GenericN8NServiceImpl<Message, Object> n8nService;
+    private GenericN8NService<Message, Object> n8nService;
 
     private Message testMessage;
     private Attachment testAttachment;

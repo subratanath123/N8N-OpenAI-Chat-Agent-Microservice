@@ -16,7 +16,12 @@ public class DomainService {
     }
 
     public static List<String> getAllowedOrigins() {
-        return List.of("https://n8-n-lanmnan-chatbot-agent-next-js.vercel.app", "http://localhost:3000", "http://localhost:3002", "http://localhost:8000");
+        return List.of(
+                "https://n8-n-lanmnan-chatbot-agent-next-js.vercel.app",
+                "http://localhost:3000",
+                "http://localhost:3002",
+                "http://localhost:8000"
+        );
     }
 
 }

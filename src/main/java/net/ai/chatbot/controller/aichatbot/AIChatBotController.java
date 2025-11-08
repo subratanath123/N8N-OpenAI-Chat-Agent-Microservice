@@ -5,9 +5,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationRequest;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationResponse;
 import net.ai.chatbot.entity.ChatBot;
-import net.ai.chatbot.service.chatbot.ChatBotService;
+import net.ai.chatbot.service.aichatbot.ChatBotService;
 import net.ai.chatbot.utils.AuthUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -22,8 +21,11 @@ import java.util.stream.Collectors;
 @RequestMapping("/v1/api/chatbot")
 public class AIChatBotController {
 
-    @Autowired
-    private ChatBotService chatBotService;
+    private final ChatBotService chatBotService;
+
+    public AIChatBotController(ChatBotService chatBotService) {
+        this.chatBotService = chatBotService;
+    }
 
     /**
      * Create a new chatbot configuration
@@ -69,30 +71,30 @@ public class AIChatBotController {
     public ResponseEntity<List<ChatBotCreationResponse>> listChatBots() {
         try {
             log.info("Listing chatbots for user: {}", AuthUtils.getEmail());
-            
+
             List<ChatBot> chatbots = chatBotService.getChatBotsByUser(AuthUtils.getEmail());
-            
+
             List<ChatBotCreationResponse> responses = chatbots.stream()
-                .map(chatbot -> ChatBotCreationResponse.builder()
-                    .id(chatbot.getId())
-                    .name(chatbot.getName())
-                    .title(chatbot.getTitle())
-                    .createdAt(chatbot.getCreatedAt())
-                    .createdBy(chatbot.getCreatedBy())
-                    .status(chatbot.getStatus())
-                    .message("Chatbot retrieved")
-                    .build())
-                .collect(Collectors.toList());
-            
+                    .map(chatbot -> ChatBotCreationResponse.builder()
+                            .id(chatbot.getId())
+                            .name(chatbot.getName())
+                            .title(chatbot.getTitle())
+                            .createdAt(chatbot.getCreatedAt())
+                            .createdBy(chatbot.getCreatedBy())
+                            .status(chatbot.getStatus())
+                            .message("Chatbot retrieved")
+                            .build())
+                    .collect(Collectors.toList());
+
             return ResponseEntity.ok(responses);
-            
+
         } catch (Exception e) {
             log.error("Error listing chatbots", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(List.of());
+                    .body(List.of());
         }
     }
-    
+
     /**
      * Get chatbot by ID
      * GET /v1/api/chatbot/{id}

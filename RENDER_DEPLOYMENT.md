@@ -38,7 +38,6 @@ Set the following environment variables in Render.com:
 - `MONGODB_URI`: Your MongoDB connection string
 - `REDIS_URL`: Your Redis connection string
 - `OPENAI_API_KEY`: Your OpenAI API key
-- `PINECONE_API_KEY`: Your Pinecone API key
 - `AWS_ACCESS_KEY_ID`: Your AWS access key
 - `AWS_SECRET_ACCESS_KEY`: Your AWS secret key
 - `AWS_REGION`: Your AWS region

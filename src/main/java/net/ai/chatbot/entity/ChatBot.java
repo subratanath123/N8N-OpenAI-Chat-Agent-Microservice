@@ -21,6 +21,7 @@ public class ChatBot {
     private String id;
     
     private String title;
+    private String email;
     private String name;
     private Boolean hideName;
     private String instructions;
@@ -34,7 +35,7 @@ public class ChatBot {
     private List<QAPair> qaPairs;
     
     // Uploaded files (file names or IDs)
-    private List<String> uploadedFiles;
+    private List<String> fileIds;
     
     // Website URLs to scrape
     private List<String> addedWebsites;

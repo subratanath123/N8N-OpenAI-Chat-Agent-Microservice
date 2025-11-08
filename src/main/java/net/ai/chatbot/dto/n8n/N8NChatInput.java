@@ -23,7 +23,6 @@ public class N8NChatInput<T> {
     private int n;
     private double temperature;
     private Map<String, Object> additionalParams;
-    private String workflowId;
     private String webhookUrl;
 
     // Generic constructor for simple message
@@ -41,8 +40,7 @@ public class N8NChatInput<T> {
     }
 
     // Builder method for workflow configuration
-    public N8NChatInput<T> withWorkflow(String workflowId, String webhookUrl) {
-        this.workflowId = workflowId;
+    public N8NChatInput<T> withWorkflow(String webhookUrl) {
         this.webhookUrl = webhookUrl;
         return this;
     }

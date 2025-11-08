@@ -73,30 +73,13 @@ public class AnonymousUserChatN8NController {
     }
 
     /**
-     * Send message with additional parameters
-     */
-    @PostMapping("/chat/params")
-    public ResponseEntity<N8NChatResponse<Object>> sendMessageWithParams(
-            @RequestBody Message message,
-            @RequestParam String workflowId,
-            @RequestParam String webhookUrl,
-            @RequestBody(required = false) Map<String, Object> additionalParams) {
-        
-        log.info("Received parameterized chat request for workflow: {}", workflowId);
-        
-        N8NChatResponse<Object> response = n8nService.sendMessageWithParams(message, additionalParams, workflowId, webhookUrl);
-        
-        return ResponseEntity.ok(response);
-    }
-
-    /**
      * Send custom input with full control over the request
      */
     @PostMapping("/chat/custom")
     public ResponseEntity<N8NChatResponse<Object>> sendCustomInput(
             @RequestBody N8NChatInput<Message> customInput) {
         
-        log.info("Received custom chat request for workflow: {}", customInput.getWorkflowId());
+        log.info("Received custom chat request for workflow: {}", customInput.getWebhookUrl());
         
         N8NChatResponse<Object> response = n8nService.sendCustomInput(customInput);
         

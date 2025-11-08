@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @RestController
@@ -95,22 +94,22 @@ public class AuthenticatedUserChatN8NController {
         return ResponseEntity.ok(response);
     }
 
-    /**
-     * Send message with additional parameters
-     */
-    @PostMapping("/chat/params")
-    public ResponseEntity<N8NChatResponse<Object>> sendMessageWithParams(
-            @RequestBody Message message,
-            @RequestParam String workflowId,
-            @RequestParam String webhookUrl,
-            @RequestBody(required = false) Map<String, Object> additionalParams) {
-        
-        log.info("Received parameterized chat request for workflow: {}", workflowId);
-        
-        N8NChatResponse<Object> response = n8nService.sendMessageWithParams(message, additionalParams, workflowId, webhookUrl);
-        
-        return ResponseEntity.ok(response);
-    }
+//    /**
+//     * Send message with additional parameters
+//     */
+//    @PostMapping("/chat/params")
+//    public ResponseEntity<N8NChatResponse<Object>> sendMessageWithParams(
+//            @RequestBody Message message,
+//            @RequestParam String workflowId,
+//            @RequestParam String webhookUrl,
+//            @RequestBody(required = false) Map<String, Object> additionalParams) {
+//
+//        log.info("Received parameterized chat request for workflow: {}", workflowId);
+//
+//        N8NChatResponse<Object> response = n8nService.sendMessageWithParams(message, additionalParams, workflowId, webhookUrl);
+//
+//        return ResponseEntity.ok(response);
+//    }
 
     /**
      * Send custom input with full control over the request
@@ -120,7 +119,7 @@ public class AuthenticatedUserChatN8NController {
     public ResponseEntity<N8NChatResponse<Object>> sendCustomInput(
             @RequestBody N8NChatInput<Message> customInput) {
         
-        log.info("Received custom chat request for workflow: {}", customInput.getWorkflowId());
+        log.info("Received custom chat request for workflow: {}", customInput.getWebhookUrl());
         
         // The N8N service will automatically process attachments if present
         N8NChatResponse<Object> response = n8nService.sendCustomInput(customInput);
@@ -170,7 +169,6 @@ public class AuthenticatedUserChatN8NController {
             // Create response object
             N8NChatResponse<Object> n8nResponse = new N8NChatResponse<>();
             n8nResponse.setSuccess(true);
-            n8nResponse.setWorkflowId(workflowId);
             n8nResponse.setTimestamp(System.currentTimeMillis());
             n8nResponse.setResult(response);
             
@@ -231,7 +229,6 @@ public class AuthenticatedUserChatN8NController {
             // Create response object
             N8NChatResponse<Object> n8nResponse = new N8NChatResponse<>();
             n8nResponse.setSuccess(true);
-            n8nResponse.setWorkflowId(workflowId);
             n8nResponse.setTimestamp(System.currentTimeMillis());
             n8nResponse.setResult(response);
             
@@ -281,7 +278,6 @@ public class AuthenticatedUserChatN8NController {
             N8NChatInput<Message> n8nInput = N8NChatInput.<Message>builder()
                     .message(messageWithAttachment)
                     .sessionId(sessionId != null ? sessionId : getSessionId())
-                    .workflowId(workflowId)
                     .webhookUrl(webhookUrl)
                     .build();
             
@@ -346,7 +342,6 @@ public class AuthenticatedUserChatN8NController {
             N8NChatInput<Message> n8nInput = N8NChatInput.<Message>builder()
                     .message(messageWithAttachments)
                     .sessionId(sessionId != null ? sessionId : getSessionId())
-                    .workflowId(workflowId)
                     .webhookUrl(webhookUrl)
                     .build();
             

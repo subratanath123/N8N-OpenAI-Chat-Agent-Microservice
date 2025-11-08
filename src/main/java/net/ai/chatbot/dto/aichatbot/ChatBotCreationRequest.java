@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import net.ai.chatbot.entity.ChatBot;
 import net.ai.chatbot.validator.ChatBotValidator.ValidChatBotName;
 import net.ai.chatbot.validator.ChatBotValidator.ValidFileList;
 import net.ai.chatbot.validator.ChatBotValidator.ValidQAPairs;
@@ -47,11 +48,11 @@ public class ChatBotCreationRequest {
     // Q&A pairs
     @Valid
     @ValidQAPairs
-    private List<QAPair> qaPairs;
+    private List<ChatBot.QAPair> qaPairs;
     
     // Uploaded files (file names or IDs)
     @ValidFileList
-    private List<String> uploadedFiles;
+    private List<String> fileIds;
     
     // Website URLs to scrape
     @ValidUrlList
@@ -60,15 +61,6 @@ public class ChatBotCreationRequest {
     // Plain text content
     @ValidTextList
     private List<String> addedTexts;
-    
-    // Inner class for Q&A pairs
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class QAPair {
-        private String question;
-        private String answer;
-    }
+
 }
 

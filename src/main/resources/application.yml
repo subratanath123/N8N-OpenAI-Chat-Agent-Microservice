@@ -27,7 +27,7 @@ spring:
         enabled: false
 
   config:
-    import: "optional:configserver:http://143.198.58.6:8887"
+    import: "optional:configserver:http://localhost:8887"
 
 eureka:
   instance:
@@ -37,7 +37,6 @@ eureka:
     fetchRegistry: true
     serviceUrl:
       defaultZone: http://143.198.58.6:8761/eureka/
-
 logging:
   level:
     org:

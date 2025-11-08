@@ -1,80 +1,79 @@
 plugins {
-	id 'java'
-	id("org.springframework.boot") version '3.2.2'
-	id 'io.spring.dependency-management' version '1.1.4'
+    id 'java'
+    id("org.springframework.boot") version '3.2.2'
+    id 'io.spring.dependency-management' version '1.1.4'
 }
 
 group = 'net.brainaxis'
 version = '0.0.1-SNAPSHOT'
 
 java {
-	sourceCompatibility = '17'
+    sourceCompatibility = '17'
 }
 
 bootJar {
-	archiveBaseName = 'JadeAiBot'
-	archiveVersion = ''
-	archiveClassifier = ''
+    archiveBaseName = 'JadeAiBot'
+    archiveVersion = ''
+    archiveClassifier = ''
 }
 
 repositories {
-	mavenCentral()
-	maven { url 'https://repo.spring.io/milestone' }
-	maven { url 'https://repo.spring.io/snapshot' }
+    mavenCentral()
+    maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://repo.spring.io/snapshot' }
 }
 
 ext {
-	set('springCloudVersion', "2023.0.0")
-	set('springBootVersion', "3.2.2")
+    set('springCloudVersion', "2023.0.0")
+    set('springBootVersion', "3.2.2")
 }
 
 repositories {
-	mavenCentral()
+    mavenCentral()
 
-	maven { url 'https://repo.spring.io/milestone' }
-	maven { url 'https://repo.spring.io/snapshot' }
+    maven { url 'https://repo.spring.io/milestone' }
+    maven { url 'https://repo.spring.io/snapshot' }
 
-	maven {
-		name = 'Central Portal Snapshots'
-		url = 'https://central.sonatype.com/repository/maven-snapshots/'
-	}
+    maven {
+        name = 'Central Portal Snapshots'
+        url = 'https://central.sonatype.com/repository/maven-snapshots/'
+    }
 }
 
 dependencies {
 
-	implementation 'org.springframework.cloud:spring-cloud-starter-config'
-	implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+    implementation 'org.springframework.boot:spring-boot-starter-webflux'
 
-//	implementation 'org.springframework.ai:spring-ai-starter-model-openai'
-	implementation("org.springframework.ai:spring-ai-starter-vector-store-pinecone")
-//	implementation platform("org.springframework.ai:spring-ai-bom:1.0.0-SNAPSHOT")
-	implementation 'org.springframework.ai:spring-ai-openai'
+//	implementation 'org.springframework.ai:spring-ai-starter-model-openai'//	implementation platform("org.springframework.ai:spring-ai-bom:1.0.0-SNAPSHOT")
+    implementation 'org.springframework.ai:spring-ai-openai'
 
-
-	implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
-	implementation 'org.springframework.boot:spring-boot-starter-websocket'
-	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.boot:spring-boot-starter-validation'
-	implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
+    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+    implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'jakarta.validation:jakarta.validation-api'
+    implementation 'org.springframework.boot:spring-boot-starter-data-mongodb'
 //	developmentOnly 'org.springframework.boot:spring-boot-docker-compose'
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	compileOnly 'org.projectlombok:lombok'
-	annotationProcessor 'org.projectlombok:lombok'
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
 
-	implementation 'software.amazon.awssdk:s3:2.20.157'
+    implementation 'software.amazon.awssdk:s3:2.20.157'
 
-	implementation("com.goikosoft.crawler4j:crawler4j:4.5.11")
-	implementation 'org.springframework.boot:spring-boot-starter-data-redis'
-	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation("com.goikosoft.crawler4j:crawler4j:4.5.11")
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
 }
 
 dependencyManagement {
-	imports {
-		mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
-		mavenBom "org.springframework.ai:spring-ai-bom:1.0.0-SNAPSHOT"
-	}
+    imports {
+        mavenBom "org.springframework.cloud:spring-cloud-dependencies:${springCloudVersion}"
+        mavenBom "org.springframework.ai:spring-ai-bom:1.0.0-SNAPSHOT"
+    }
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+    useJUnitPlatform()
 }

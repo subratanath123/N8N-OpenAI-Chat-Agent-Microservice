@@ -6,6 +6,7 @@ import jakarta.validation.ConstraintValidatorContext;
 import jakarta.validation.Payload;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationRequest;
+import net.ai.chatbot.entity.ChatBot;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -79,13 +80,13 @@ public class ChatBotValidator {
     /**
      * Validator for Q&A pairs
      */
-    public static class QAPairValidator implements ConstraintValidator<ValidQAPairs, List<ChatBotCreationRequest.QAPair>> {
+    public static class QAPairValidator implements ConstraintValidator<ValidQAPairs, List<ChatBot.QAPair>> {
         private static final int MAX_PAIRS = 100;
         private static final int MAX_QUESTION_LENGTH = 500;
         private static final int MAX_ANSWER_LENGTH = 2000;
         
         @Override
-        public boolean isValid(List<ChatBotCreationRequest.QAPair> qaPairs,
+        public boolean isValid(List<ChatBot.QAPair> qaPairs,
                              ConstraintValidatorContext context) {
             if (qaPairs == null) {
                 return true; // Optional field
@@ -99,7 +100,7 @@ public class ChatBotValidator {
             }
             
             for (int i = 0; i < qaPairs.size(); i++) {
-                ChatBotCreationRequest.QAPair pair = qaPairs.get(i);
+                ChatBot.QAPair pair = qaPairs.get(i);
                 if (pair == null) {
                     context.disableDefaultConstraintViolation();
                     context.buildConstraintViolationWithTemplate("Q&A pair at index " + i + " cannot be null")
