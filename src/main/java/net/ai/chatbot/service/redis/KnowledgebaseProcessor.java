@@ -43,10 +43,18 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
         if (chatBot == null) return;
 
         String knowledgebaseCollectionName = mongodbVectorService.getKnowledgebaseCollectionName(chatBot.getId());
+//        String knowledgebaseCollectionName = "test-db";
         mongodbVectorService.createMongodbCollection(knowledgebaseCollectionName);
 
         String knowledgebaseVectorIndexName = mongodbVectorService.getKnowledgebaseVectorIndexName(chatBot.getId());
-        mongodbVectorService.createMongodbCollection(knowledgebaseVectorIndexName);
+//        String knowledgebaseVectorIndexName = "test-vector-index";
+        mongodbVectorService.createVectorIndex(
+                knowledgebaseCollectionName,
+                "embedding",
+                knowledgebaseVectorIndexName,
+                1536,
+                "cosine"
+        );
 
         //Training PDF Files
         if (Objects.nonNull(chatBot.getFileIds()) && !chatBot.getFileIds().isEmpty()) {

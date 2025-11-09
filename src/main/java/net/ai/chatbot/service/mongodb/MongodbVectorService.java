@@ -1,5 +1,7 @@
 package net.ai.chatbot.service.mongodb;
 
+import com.mongodb.MongoCommandException;
+import com.mongodb.client.MongoCollection;
 import lombok.extern.slf4j.Slf4j;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Value;
@@ -60,47 +62,54 @@ public class MongodbVectorService {
         }
     }
 
-    /**
-     * Creates a vector search index on a MongoDB collection
-     *
-     * @param collectionName   Name of the collection
-     * @param vectorFieldName  Name of the field containing vector embeddings
-     * @param dimensions       Number of dimensions in the vector (e.g., 1536 for OpenAI embeddings)
-     * @param similarityMetric Similarity metric to use (e.g., "cosine", "euclidean", "dotProduct")
-     * @return Index name
-     */
-    public String createVectorIndex(String collectionName,
-                                    String vectorFieldName,
-                                    String vectorIndexName,
-                                    int dimensions,
-                                    String similarityMetric) {
-        try {
-            log.info("Creating vector index on collection '{}' for field '{}'",
-                    collectionName, vectorFieldName);
+        /**
+         * Creates a vector search index on a MongoDB collection
+         *
+         * @param collectionName   Name of the collection
+         * @param vectorFieldName  Name of the field containing vector embeddings
+         * @param dimensions       Number of dimensions in the vector (e.g., 1536 for OpenAI embeddings)
+         * @param similarityMetric Similarity metric to use (e.g., "cosine", "euclidean", "dotProduct")
+         * @return Index name
+         */
+        public void createVectorIndex(String collectionName,
+                                        String vectorFieldName,
+                                        String vectorIndexName,
+                                        int dimensions,
+                                        String similarityMetric) {
 
-            Document vectorSearchDefinition = new Document("type", "vector")
-                    .append("path", vectorFieldName)
-                    .append("numDimensions", dimensions)
-                    .append("similarity", similarityMetric); // "cosine", "euclidean", or "dotProduct"
+            try {
+                log.info("Creating vector search index '{}' on collection '{}'", vectorIndexName, collectionName);
 
-            Document indexDefinition = new Document("fields",
-                    new Document(vectorFieldName, vectorSearchDefinition));
+                Document vectorIndexDefinition = new Document()
+                        .append("name", vectorIndexName)
+                        .append("type", "vectorSearch")
+                        .append("definition", new Document()
+                                .append("fields", List.of(
+                                        new Document()
+                                                .append("type", "vector")
+                                                .append("path", vectorFieldName)
+                                                .append("numDimensions", dimensions)
+                                                .append("similarity", similarityMetric))));
 
-            Document command = new Document("createSearchIndexes", collectionName)
-                    .append("indexes", List.of(new Document()
-                            .append("name", vectorIndexName)
-                            .append("definition", indexDefinition)));
+                Document command = new Document("createSearchIndexes", collectionName)
+                        .append("indexes", List.of(vectorIndexDefinition));
 
-            mongoTemplate.getDb().runCommand(command);
-
-            log.info("✅ Vector search index '{}' created successfully on collection '{}'",
-                    vectorIndexName, collectionName);
-
-            return vectorIndexName;
-
-        } catch (Exception e) {
-            log.error("❌ Error creating vector index on collection: {}", collectionName, e);
-            throw new RuntimeException("Failed to create vector index on collection: " + collectionName, e);
+                mongoTemplate.getDb().runCommand(command);
+                
+                log.info("Vector search index '{}' created successfully on collection '{}'", vectorIndexName, collectionName);
+                
+            } catch (MongoCommandException e) {
+                if (e.getErrorCode() == 68) {
+                    log.info("Vector search index '{}' already exists on collection '{}'", vectorIndexName, collectionName);
+                } else {
+                    log.error("Failed to create vector search index '{}' on collection '{}': {}", 
+                            vectorIndexName, collectionName, e.getMessage(), e);
+                    throw e;
+                }
+            } catch (Exception e) {
+                log.error("Unexpected error creating vector search index '{}' on collection '{}': {}", 
+                        vectorIndexName, collectionName, e.getMessage(), e);
+                throw e;
+            }
         }
-    }
 }
