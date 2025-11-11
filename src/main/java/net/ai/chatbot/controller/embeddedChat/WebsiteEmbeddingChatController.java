@@ -39,7 +39,6 @@ public class WebsiteEmbeddingChatController {
         N8NChatResponse<Object> response = n8nService.sendMessageWithSession(
                 message,
                 AuthUtils.getEmail(),
-                embeddedChatService.getWorkflowId(),
                 webhookKnowledgebaseChatUrl
         );
         
@@ -57,7 +56,6 @@ public class WebsiteEmbeddingChatController {
         N8NChatResponse<Object> response = n8nService.sendMessageWithSession(
                 message,
                 sessionId,
-                embeddedChatService.getWorkflowId(),
                 webhookKnowledgebaseChatUrl
         );
 

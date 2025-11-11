@@ -1,16 +1,22 @@
 package net.ai.chatbot.service.n8n;
 
 import lombok.extern.slf4j.Slf4j;
+import net.ai.chatbot.dto.Message;
 import net.ai.chatbot.dto.n8n.N8NChatInput;
 import net.ai.chatbot.dto.n8n.N8NChatResponse;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
@@ -19,143 +25,166 @@ public class GenericN8NService<T, R> {
     @Autowired
     private RestTemplate n8nRestTemplate;
 
-    public N8NChatResponse<R> sendMessage(T message, String workflowId, String webhookUrl) {
-        try {
-            log.info("Sending message to N8N workflow: {}", workflowId);
-
-            N8NChatInput<T> input = N8NChatInput.<T>of(message)
-                    .withWorkflow(webhookUrl);
-
-            return sendCustomInput(input);
-        } catch (Exception e) {
-            log.error("Error sending message to N8N workflow {}: {}", workflowId, e.getMessage());
-            return N8NChatResponse.<R>error("N8N_ERROR", "Failed to send message to N8N workflow: " + e.getMessage());
+    public N8NChatResponse<R> sendMessage(Message message, String webhookUrl) {
+        if (message == null) {
+            return N8NChatResponse.<R>error("INVALID_MESSAGE", "Message payload is required");
         }
+
+        return executeWebhook(
+                webhookUrl,
+                message.getMessage(),
+                Optional.ofNullable(message.getSessionId()).orElse(null),
+                "jade-ai-knowledgebase-" + Optional.ofNullable(message.getChatbotId()).orElse(null),
+                Collections.emptyMap(),
+                Collections.emptyMap()
+        );
     }
 
-    public N8NChatResponse<R> sendMessages(List<T> messages, String workflowId, String webhookUrl) {
-        try {
-            log.info("Sending {} messages to N8N workflow: {}", messages.size(), workflowId);
-
-            N8NChatInput<T> input = N8NChatInput.<T>of(messages)
-                    .withWorkflow(webhookUrl);
-
-            return sendCustomInput(input);
-        } catch (Exception e) {
-            log.error("Error sending messages to N8N workflow {}: {}", workflowId, e.getMessage());
-            return N8NChatResponse.<R>error("N8N_ERROR", "Failed to send messages to N8N workflow: " + e.getMessage());
+    public N8NChatResponse<R> sendMessages(List<Message> messages, String webhookUrl) {
+        if (messages == null || messages.isEmpty()) {
+            return N8NChatResponse.<R>error("INVALID_MESSAGES", "At least one message is required");
         }
+
+        List<N8NChatResponse<R>> responses = new ArrayList<>();
+        for (Message message : messages) {
+            N8NChatResponse<R> response = sendMessage(message, webhookUrl);
+            responses.add(response);
+
+            if (!response.isSuccess()) {
+                return response;
+            }
+        }
+
+        List<R> aggregatedResults = responses.stream()
+                .map(N8NChatResponse::getData)
+                .collect(Collectors.toList());
+
+        N8NChatResponse<R> aggregatedResponse = N8NChatResponse.success(aggregatedResults);
+        aggregatedResponse.setMessage("Messages processed successfully");
+        aggregatedResponse.setResult(aggregatedResults);
+        aggregatedResponse.setTimestamp(System.currentTimeMillis());
+        return aggregatedResponse;
     }
 
-    public N8NChatResponse<R> sendCustomInput(N8NChatInput<T> input) {
-        try {
-            String webhookUrl = input.getWebhookUrl();
-            if (webhookUrl == null || webhookUrl.trim().isEmpty()) {
-                return N8NChatResponse.<R>error("INVALID_URL", "Webhook URL is required");
-            }
-
-            log.info("Sending custom input to N8N webhook: {}", webhookUrl);
-
-            // Process attachments if present - extract first attachment data
-            N8NChatInput<T> processedInput = input;
-
-            // Log the final request body for debugging
-            log.info("Final N8N request body: sessionId={}, model={}, message={}, messages={}, attachments={}, additionalParams={}",
-                    processedInput.getSessionId(), processedInput.getModel(), processedInput.getMessage(),
-                    processedInput.getMessages(), processedInput.getAttachments(), processedInput.getAdditionalParams());
-
-            // Additional logging for message details
-            if (processedInput.getMessage() instanceof net.ai.chatbot.dto.Message) {
-                net.ai.chatbot.dto.Message message = (net.ai.chatbot.dto.Message) processedInput.getMessage();
-                log.info("Message details: role={}, content={}, messageAttachments={}",
-                        message.getRole(), message.getContent(), message.getAttachments());
-            }
-
-            // Use Object.class to get the raw response first
-            Object rawResponse = n8nRestTemplate.postForObject(webhookUrl, processedInput, Object.class);
-
-            if (rawResponse == null) {
-                return N8NChatResponse.<R>error("NULL_RESPONSE", "Received null response from N8N");
-            }
-
-            log.info("Raw N8N response: {}", rawResponse);
-
-            // Create a response object and populate it based on the raw response
-            N8NChatResponse<R> response = new N8NChatResponse<>();
-            response.setSuccess(true);
-            response.setTimestamp(System.currentTimeMillis());
-
-            // Handle different response formats
-            if (rawResponse instanceof Map) {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> responseMap = (Map<String, Object>) rawResponse;
-
-                // Check for common N8N response fields
-                if (responseMap.containsKey("output")) {
-                    response.setOutput((String) responseMap.get("output"));
-                }
-                if (responseMap.containsKey("body")) {
-                    response.setBody((Map<String, Object>) responseMap.get("body"));
-                }
-                if (responseMap.containsKey("result")) {
-                    response.setResult(responseMap.get("result"));
-                }
-                if (responseMap.containsKey("status")) {
-                    response.setStatus((String) responseMap.get("status"));
-                }
-                if (responseMap.containsKey("headers")) {
-                    response.setHeaders((Map<String, Object>) responseMap.get("headers"));
-                }
-                if (responseMap.containsKey("message")) {
-                    response.setMessage((String) responseMap.get("message"));
-                }
-                if (responseMap.containsKey("data")) {
-                    @SuppressWarnings("unchecked")
-                    R data = (R) responseMap.get("data");
-                    response.setData(data);
-                }
-            } else if (rawResponse instanceof String) {
-                // If it's just a string, treat it as output
-                response.setOutput((String) rawResponse);
-            } else {
-                // For other types, try to convert to string
-                response.setOutput(rawResponse.toString());
-            }
-
-            return response;
-
-        } catch (RestClientException e) {
-            log.error("HTTP error calling N8N webhook: {}", e.getMessage());
-            return N8NChatResponse.<R>error("HTTP_ERROR", "HTTP error calling N8N webhook: " + e.getMessage());
-        } catch (Exception e) {
-            log.error("Unexpected error calling N8N webhook: {}", e.getMessage());
-            return N8NChatResponse.<R>error("UNEXPECTED_ERROR", "Unexpected error: " + e.getMessage());
+    public N8NChatResponse<R> sendCustomInput(N8NChatInput input) {
+        if (input == null) {
+            return N8NChatResponse.<R>error("INVALID_INPUT", "Input payload is required");
         }
+
+        Message message = input.getMessage();
+        if (message == null || message.getMessage() == null || message.getMessage().isBlank()) {
+            return N8NChatResponse.<R>error("INVALID_MESSAGE", "Message content is required");
+        }
+
+        Map<String, Object> additionalParams = Optional.ofNullable(input.getAdditionalParams())
+                .orElse(Collections.emptyMap());
+
+        return executeWebhook(
+                input.getWebhookUrl(),
+                message.getMessage(),
+                Optional.ofNullable(message.getSessionId()).orElse(input.getSessionId()),
+                "jade-ai-knowledgebase-" + Optional.ofNullable(message.getChatbotId()).orElse(input.getChatbotId()),
+                additionalParams,
+                Collections.emptyMap()
+        );
     }
 
-    public N8NChatResponse<R> sendMessageWithSession(T message, String sessionId, String workflowId, String webhookUrl) {
+    public N8NChatResponse<R> sendMessageWithSession(Message message, String sessionId, String webhookUrl) {
         try {
-            log.info("Sending message with session {} to N8N workflow: {}", sessionId, workflowId);
+            log.info("Sending message with session {} ", sessionId);
 
-            N8NChatInput<T> input = N8NChatInput.<T>of(message)
-                    .withWorkflow(webhookUrl);
+            if (message == null) {
+                return N8NChatResponse.<R>error("INVALID_MESSAGE", "Message payload is required");
+            }
 
-            input.setSessionId(sessionId);
-
-            return sendCustomInput(input);
+            return executeWebhook(
+                    webhookUrl,
+                    message.getMessage(),
+                    sessionId,
+                    "jade-ai-knowledgebase-" + message.getChatbotId(),
+                    Collections.emptyMap(),
+                    Collections.emptyMap()
+            );
         } catch (Exception e) {
-            log.error("Error sending message with session to N8N workflow {}: {}", workflowId, e.getMessage());
+            log.error("Error sending message with session to N8N: {}", e.getMessage());
             return N8NChatResponse.<R>error("N8N_ERROR", "Failed to send message with session: " + e.getMessage());
         }
     }
 
-    /**
-     * Helper method to create a list with a single message
-     */
-    private List<T> createSingleMessageList(T message) {
-        List<T> list = new ArrayList<>();
-        list.add(message);
-        return list;
+    private N8NChatResponse<R> executeWebhook(String webhookUrl,
+                                              String messageContent,
+                                              String conversationId,
+                                              String chatbotCollection,
+                                              Map<String, Object> extraFormFields,
+                                              Map<String, String> extraHeaders) {
+        if (webhookUrl == null || webhookUrl.isBlank()) {
+            return N8NChatResponse.<R>error("INVALID_URL", "Webhook URL is required");
+        }
+
+        if (messageContent == null || messageContent.isBlank()) {
+            return N8NChatResponse.<R>error("INVALID_MESSAGE", "Message content is required");
+        }
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.setAccept(Collections.singletonList(MediaType.ALL));
+
+            if (conversationId != null && !conversationId.isBlank()) {
+                headers.add("conversationid", conversationId);
+            }
+
+            if (chatbotCollection != null && !chatbotCollection.isBlank()) {
+                headers.add("chatbotKnowledgebaseCollection", chatbotCollection);
+            }
+
+            if (extraHeaders != null) {
+                extraHeaders.forEach((key, value) -> {
+                    if (key != null && value != null) {
+                        headers.add(key, value);
+                    }
+                });
+            }
+
+            MultiValueMap<String, Object> formData = new LinkedMultiValueMap<>();
+            formData.add("message", messageContent);
+
+            if (extraFormFields != null && !extraFormFields.isEmpty()) {
+                extraFormFields.forEach((key, value) -> {
+                    if (key != null && value != null) {
+                        formData.add(key, value);
+                    }
+                });
+            }
+
+            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(formData, headers);
+
+            ResponseEntity<String> responseEntity = n8nRestTemplate.postForEntity(webhookUrl, requestEntity, String.class);
+
+            N8NChatResponse<R> response = new N8NChatResponse<>();
+            response.setTimestamp(System.currentTimeMillis());
+            response.setStatus(responseEntity.getStatusCode().toString());
+            response.setSuccess(responseEntity.getStatusCode().is2xxSuccessful());
+            response.setOutput(responseEntity.getBody());
+            response.setResult(responseEntity.getBody());
+            response.setMessage(responseEntity.getBody());
+
+            @SuppressWarnings("unchecked")
+            R data = (R) responseEntity.getBody();
+            response.setData(data);
+
+            Map<String, Object> headerMap = responseEntity.getHeaders().toSingleValueMap().entrySet().stream()
+                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+            response.setHeaders(headerMap);
+
+            return response;
+
+        } catch (RestClientException e) {
+            log.error("HTTP error calling N8N webhook {}: {}", webhookUrl, e.getMessage());
+            return N8NChatResponse.<R>error("HTTP_ERROR", "HTTP error calling N8N webhook: " + e.getMessage());
+        } catch (Exception e) {
+            log.error("Unexpected error calling N8N webhook {}: {}", webhookUrl, e.getMessage());
+            return N8NChatResponse.<R>error("UNEXPECTED_ERROR", "Unexpected error: " + e.getMessage());
+        }
     }
 
 }

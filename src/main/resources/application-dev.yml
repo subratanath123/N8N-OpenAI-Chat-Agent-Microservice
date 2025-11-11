@@ -53,4 +53,4 @@ n8n:
         train:
           url: http://143.198.58.6:5678/webhook/cacb416b-286a-4524-9b29-9d8a81bb5864
         chat:
-          url: http://143.198.58.6:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea
+          url: http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea

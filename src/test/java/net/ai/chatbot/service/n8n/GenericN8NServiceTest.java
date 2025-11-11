@@ -38,7 +38,7 @@ class GenericN8NServiceTest {
     void setUp() {
         testMessage = Message.builder()
                 .role("user")
-                .content("Test message with attachment")
+                .message("Test message with attachment")
                 .build();
 
         // Create a test PDF with known base64 content

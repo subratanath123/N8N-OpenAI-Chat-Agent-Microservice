@@ -41,7 +41,7 @@ class AuthenticatedUserChatN8NControllerTest {
     void setUp() {
         testMessage = Message.builder()
                 .role("user")
-                .content("Test message with attachment")
+                .message("Test message with attachment")
                 .build();
 
         testAttachment = Attachment.builder()

@@ -14,14 +14,10 @@ import java.util.List;
 public class Message {
 
     private String role;
-    private String content;
+    private String message;
     private List<Attachment> attachments;
+    private String sessionId;
+    private String chatbotId;
 
-    // Convenience constructor for backward compatibility
-    public Message(String role, String content) {
-        this.role = role;
-        this.content = content;
-        this.attachments = null;
-    }
 }
 
