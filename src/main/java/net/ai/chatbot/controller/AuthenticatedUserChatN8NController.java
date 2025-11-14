@@ -33,8 +33,8 @@ public class AuthenticatedUserChatN8NController {
     @Autowired
     private GenericN8NService<Message, Object> n8nService;
 
-    @Value("${n8n.webhook.knowledgebase.chat.url}")
-    private String webhookUrl;
+    //    @Value("${n8n.webhook.knowledgebase.chat.url}")
+    private String webhookUrl = "http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea";
 
     /**
      * Get session ID from authentication context or return default
@@ -56,19 +56,6 @@ public class AuthenticatedUserChatN8NController {
             @RequestBody Message message) {
         
         N8NChatResponse<Object> response = n8nService.sendMessage(message, webhookUrl);
-        
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Send multiple messages to N8N workflow
-     */
-    @PostMapping("/chat/batch")
-    public ResponseEntity<N8NChatResponse<Object>> sendMessages(
-            @RequestBody List<Message> messages,
-            @RequestParam String webhookUrl) {
-        
-        N8NChatResponse<Object> response = n8nService.sendMessages(messages, webhookUrl);
         
         return ResponseEntity.ok(response);
     }

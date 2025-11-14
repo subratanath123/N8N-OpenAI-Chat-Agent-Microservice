@@ -23,8 +23,8 @@ public class WebsiteEmbeddingChatController {
     @Autowired
     private EmbeddedChatService embeddedChatService;
 
-    @Value("${n8n.webhook.knowledgebase.chat.url}")
-    private String webhookKnowledgebaseChatUrl;
+//    @Value("${n8n.webhook.knowledgebase.chat.url}")
+    private String webhookKnowledgebaseChatUrl = "http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea";
 
     /**
      * Send a single message to N8N workflow

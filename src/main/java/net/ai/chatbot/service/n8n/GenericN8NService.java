@@ -4,16 +4,15 @@ import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.Message;
 import net.ai.chatbot.dto.n8n.N8NChatInput;
 import net.ai.chatbot.dto.n8n.N8NChatResponse;
+import net.ai.chatbot.service.webclient.GenericWebClient;
+import net.ai.chatbot.service.webclient.GenericWebClientResponse;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
-import org.springframework.web.client.RestClientException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.reactive.function.BodyInserters;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -22,8 +21,12 @@ import java.util.stream.Collectors;
 @Slf4j
 public class GenericN8NService<T, R> {
 
+    private final GenericWebClient genericWebClient;
+
     @Autowired
-    private RestTemplate n8nRestTemplate;
+    public GenericN8NService(GenericWebClient genericWebClient) {
+        this.genericWebClient = genericWebClient;
+    }
 
     public N8NChatResponse<R> sendMessage(Message message, String webhookUrl) {
         if (message == null) {
@@ -35,35 +38,10 @@ public class GenericN8NService<T, R> {
                 message.getMessage(),
                 Optional.ofNullable(message.getSessionId()).orElse(null),
                 "jade-ai-knowledgebase-" + Optional.ofNullable(message.getChatbotId()).orElse(null),
+                "jade-ai-vector-index-" + Optional.ofNullable(message.getChatbotId()).orElse(null),
                 Collections.emptyMap(),
                 Collections.emptyMap()
         );
-    }
-
-    public N8NChatResponse<R> sendMessages(List<Message> messages, String webhookUrl) {
-        if (messages == null || messages.isEmpty()) {
-            return N8NChatResponse.<R>error("INVALID_MESSAGES", "At least one message is required");
-        }
-
-        List<N8NChatResponse<R>> responses = new ArrayList<>();
-        for (Message message : messages) {
-            N8NChatResponse<R> response = sendMessage(message, webhookUrl);
-            responses.add(response);
-
-            if (!response.isSuccess()) {
-                return response;
-            }
-        }
-
-        List<R> aggregatedResults = responses.stream()
-                .map(N8NChatResponse::getData)
-                .collect(Collectors.toList());
-
-        N8NChatResponse<R> aggregatedResponse = N8NChatResponse.success(aggregatedResults);
-        aggregatedResponse.setMessage("Messages processed successfully");
-        aggregatedResponse.setResult(aggregatedResults);
-        aggregatedResponse.setTimestamp(System.currentTimeMillis());
-        return aggregatedResponse;
     }
 
     public N8NChatResponse<R> sendCustomInput(N8NChatInput input) {
@@ -84,6 +62,7 @@ public class GenericN8NService<T, R> {
                 message.getMessage(),
                 Optional.ofNullable(message.getSessionId()).orElse(input.getSessionId()),
                 "jade-ai-knowledgebase-" + Optional.ofNullable(message.getChatbotId()).orElse(input.getChatbotId()),
+                "jade-ai-vector-index-" + Optional.ofNullable(message.getChatbotId()).orElse(input.getChatbotId()),
                 additionalParams,
                 Collections.emptyMap()
         );
@@ -102,6 +81,7 @@ public class GenericN8NService<T, R> {
                     message.getMessage(),
                     sessionId,
                     "jade-ai-knowledgebase-" + message.getChatbotId(),
+                    "jade-ai-vector-index-" + message.getChatbotId(),
                     Collections.emptyMap(),
                     Collections.emptyMap()
             );
@@ -115,70 +95,30 @@ public class GenericN8NService<T, R> {
                                               String messageContent,
                                               String conversationId,
                                               String chatbotCollection,
+                                              String vectorIndexName,
                                               Map<String, Object> extraFormFields,
                                               Map<String, String> extraHeaders) {
         if (webhookUrl == null || webhookUrl.isBlank()) {
-            return N8NChatResponse.<R>error("INVALID_URL", "Webhook URL is required");
+            return N8NChatResponse.error("INVALID_URL", "Webhook URL is required");
         }
 
         if (messageContent == null || messageContent.isBlank()) {
-            return N8NChatResponse.<R>error("INVALID_MESSAGE", "Message content is required");
+            return N8NChatResponse.error("INVALID_MESSAGE", "Message content is required");
         }
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setAccept(Collections.singletonList(MediaType.ALL));
+            Map<String, String> headers = buildHeaders(chatbotCollection, vectorIndexName, conversationId, extraHeaders);
 
-            if (conversationId != null && !conversationId.isBlank()) {
-                headers.add("conversationid", conversationId);
-            }
+            GenericWebClientResponse<String> responseEntity = genericWebClient.postWithResponse(
+                    webhookUrl,
+                    () -> BodyInserters.fromFormData(buildFormDataAsStringMap(messageContent, extraFormFields)),
+                    String.class,
+                    headers
+            );
 
-            if (chatbotCollection != null && !chatbotCollection.isBlank()) {
-                headers.add("chatbotKnowledgebaseCollection", chatbotCollection);
-            }
+            return buildChatResponse(responseEntity);
 
-            if (extraHeaders != null) {
-                extraHeaders.forEach((key, value) -> {
-                    if (key != null && value != null) {
-                        headers.add(key, value);
-                    }
-                });
-            }
-
-            MultiValueMap<String, Object> formData = new LinkedMultiValueMap<>();
-            formData.add("message", messageContent);
-
-            if (extraFormFields != null && !extraFormFields.isEmpty()) {
-                extraFormFields.forEach((key, value) -> {
-                    if (key != null && value != null) {
-                        formData.add(key, value);
-                    }
-                });
-            }
-
-            HttpEntity<MultiValueMap<String, Object>> requestEntity = new HttpEntity<>(formData, headers);
-
-            ResponseEntity<String> responseEntity = n8nRestTemplate.postForEntity(webhookUrl, requestEntity, String.class);
-
-            N8NChatResponse<R> response = new N8NChatResponse<>();
-            response.setTimestamp(System.currentTimeMillis());
-            response.setStatus(responseEntity.getStatusCode().toString());
-            response.setSuccess(responseEntity.getStatusCode().is2xxSuccessful());
-            response.setOutput(responseEntity.getBody());
-            response.setResult(responseEntity.getBody());
-            response.setMessage(responseEntity.getBody());
-
-            @SuppressWarnings("unchecked")
-            R data = (R) responseEntity.getBody();
-            response.setData(data);
-
-            Map<String, Object> headerMap = responseEntity.getHeaders().toSingleValueMap().entrySet().stream()
-                    .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
-            response.setHeaders(headerMap);
-
-            return response;
-
-        } catch (RestClientException e) {
+        } catch (RuntimeException e) {
             log.error("HTTP error calling N8N webhook {}: {}", webhookUrl, e.getMessage());
             return N8NChatResponse.<R>error("HTTP_ERROR", "HTTP error calling N8N webhook: " + e.getMessage());
         } catch (Exception e) {
@@ -187,4 +127,71 @@ public class GenericN8NService<T, R> {
         }
     }
 
+    private Map<String, String> buildHeaders(String chatbotCollection,
+                                             String vectorIndexName,
+                                             String conversationId,
+                                             Map<String, String> extraHeaders) {
+        Map<String, String> headers = new HashMap<>();
+        headers.put(HttpHeaders.ACCEPT, MediaType.ALL_VALUE);
+        headers.put("chatbotKnowledgebaseCollection", chatbotCollection);
+        headers.put("vectorIndexName", vectorIndexName);
+        headers.put("authenticated", vectorIndexName);
+
+        if (conversationId != null && !conversationId.isBlank()) {
+            headers.put("sessionid", conversationId);
+            headers.put("conversationid", conversationId);
+        }
+
+        if (extraHeaders != null) {
+            extraHeaders.forEach((key, value) -> {
+                if (key != null && value != null) {
+                    headers.put(key, value);
+                }
+            });
+        }
+
+        return headers;
+    }
+
+    private MultiValueMap<String, String> buildFormDataAsStringMap(String messageContent,
+                                                                   Map<String, Object> extraFormFields) {
+        MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
+        formData.add("message", messageContent);
+
+        if (extraFormFields != null && !extraFormFields.isEmpty()) {
+            extraFormFields.forEach((key, value) -> {
+                if (key != null && value != null) {
+                    formData.add(key, value.toString());
+                }
+            });
+        }
+
+        return formData;
+    }
+
+    private N8NChatResponse<R> buildChatResponse(GenericWebClientResponse<String> responseEntity) {
+        N8NChatResponse<R> response = new N8NChatResponse<>();
+        response.setTimestamp(System.currentTimeMillis());
+        response.setStatus(responseEntity.getStatusCode() != null ? responseEntity.getStatusCode().toString() : null);
+        response.setSuccess(responseEntity.is2xxSuccessful());
+        response.setOutput(responseEntity.getBody());
+        response.setResult(responseEntity.getBody());
+        response.setMessage(responseEntity.getBody());
+
+        @SuppressWarnings("unchecked")
+        R data = (R) responseEntity.getBody();
+        response.setData(data);
+
+        Map<String, Object> headerMap = Optional.ofNullable(responseEntity.getHeaders())
+                .map(headers -> headers.entrySet().stream()
+                        .collect(Collectors.toMap(
+                                Map.Entry::getKey,
+                                entry -> entry.getValue().size() == 1 ? entry.getValue().get(0) : entry.getValue()
+                        )))
+                .orElse(Collections.emptyMap());
+
+        response.setHeaders(headerMap);
+
+        return response;
+    }
 }

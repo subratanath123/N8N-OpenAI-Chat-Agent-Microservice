@@ -22,8 +22,8 @@ public class AnonymousUserChatN8NController {
     @Autowired
     private GenericN8NService<Message, Object> n8nService;
 
-    @Value("${n8n.webhook.knowledgebase.chat.url}")
-    private String webhookUrl;
+    //    @Value("${n8n.webhook.knowledgebase.chat.url}")
+    private String webhookUrl = "http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea";
     
     /**
      * Send a single message to N8N workflow

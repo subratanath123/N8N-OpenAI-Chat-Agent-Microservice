@@ -1,6 +1,8 @@
 package net.ai.chatbot.service.webclient;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.reactive.ClientHttpRequest;
 import org.springframework.stereotype.Component;
@@ -11,8 +13,11 @@ import reactor.core.publisher.Mono;
 
 import java.time.Duration;
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+
+import static java.util.Optional.empty;
 
 /**
  * Generic WebClient utility for making HTTP requests
@@ -43,9 +48,7 @@ public class GenericWebClient {
 
             R response;
             if (payload instanceof BodyInserter<?, ?> bodyInserter) {
-
-                requestSpec.contentType(MediaType.MULTIPART_FORM_DATA);
-
+                // Don't set content type - let the BodyInserter set it (form data vs multipart)
                 @SuppressWarnings("unchecked")
                 BodyInserter<Object, ? super ClientHttpRequest> inserter =
                         (BodyInserter<Object, ? super ClientHttpRequest>) bodyInserter;
@@ -79,6 +82,50 @@ public class GenericWebClient {
         }
     }
 
+    public <T, R> GenericWebClientResponse<R> postWithResponse(String url,
+                                                               Supplier<T> requestPayload,
+                                                               Class<R> responseType,
+                                                               Map<String, String> headers) {
+        try {
+            log.info("POST request with response details to URL: {}", url);
+
+            WebClient webClient = buildWebClient(url, headers);
+
+            T payload = requestPayload.get();
+
+            WebClient.RequestBodySpec requestSpec = webClient.post().uri(url);
+
+            Mono<GenericWebClientResponse<R>> responseMono;
+            if (payload instanceof BodyInserter<?, ?> bodyInserter) {
+                // Don't set content type - let the BodyInserter set it (form data vs multipart)
+                @SuppressWarnings("unchecked")
+                BodyInserter<Object, ? super ClientHttpRequest> inserter =
+                        (BodyInserter<Object, ? super ClientHttpRequest>) bodyInserter;
+
+                responseMono = exchangeWithResponse(requestSpec.body(inserter), responseType);
+
+            } else {
+                requestSpec.contentType(MediaType.APPLICATION_JSON);
+                responseMono = exchangeWithResponse(requestSpec.bodyValue(payload), responseType);
+            }
+
+            GenericWebClientResponse<R> response = responseMono
+                    .timeout(DEFAULT_TIMEOUT)
+                    .block();
+
+            log.info("POST request with response details successful to: {}", url);
+            return response;
+
+        } catch (WebClientResponseException e) {
+            log.error("WebClient POST request failed with status: {} for URL: {}",
+                    e.getStatusCode(), url, e);
+            throw new RuntimeException("POST request failed: " + e.getResponseBodyAsString(), e);
+        } catch (Exception e) {
+            log.error("Error during POST request to URL: {}", url, e);
+            throw new RuntimeException("POST request error: " + e.getMessage(), e);
+        }
+    }
+
     public <T, R> R post(String url, Supplier<T> requestPayload, Class<R> responseType) {
         return post(url, requestPayload, responseType, null);
     }
@@ -99,9 +146,7 @@ public class GenericWebClient {
 
             Mono<R> responseMono;
             if (payload instanceof BodyInserter<?, ?> bodyInserter) {
-
-                requestSpec.contentType(MediaType.MULTIPART_FORM_DATA);
-
+                // Don't set content type - let the BodyInserter set it (form data vs multipart)
                 @SuppressWarnings("unchecked")
                 BodyInserter<Object, ? super ClientHttpRequest> inserter =
                         (BodyInserter<Object, ? super ClientHttpRequest>) bodyInserter;
@@ -220,6 +265,26 @@ public class GenericWebClient {
         return getAsync(url, responseType, null, null);
     }
 
+    private <R> Mono<GenericWebClientResponse<R>> exchangeWithResponse(WebClient.RequestHeadersSpec<?> requestSpec,
+                                                                       Class<R> responseType) {
+        return requestSpec
+                .exchangeToMono(clientResponse -> {
+                    HttpStatusCode statusCode = clientResponse.statusCode();
+                    if (statusCode.isError()) {
+                        return clientResponse.createException().flatMap(Mono::error);
+                    }
+
+                    return clientResponse.bodyToMono(responseType)
+                            .map(Optional::of)
+                            .defaultIfEmpty(empty())
+                            .map(optionalBody -> new GenericWebClientResponse<>(
+                                    optionalBody.orElse(null),
+                                    statusCode,
+                                    new HttpHeaders(clientResponse.headers().asHttpHeaders())
+                            ));
+                });
+    }
+
     private WebClient buildWebClient(String baseUrl, Map<String, String> headers) {
         WebClient.Builder builder = webClientBuilder.clone();
 
@@ -250,7 +315,7 @@ public class GenericWebClient {
 
             R response;
             if (payload instanceof BodyInserter<?, ?> bodyInserter) {
-                requestSpec.contentType(MediaType.MULTIPART_FORM_DATA);
+                // Don't set content type - let the BodyInserter set it (form data vs multipart)
                 @SuppressWarnings("unchecked")
                 BodyInserter<Object, ? super ClientHttpRequest> inserter =
                         (BodyInserter<Object, ? super ClientHttpRequest>) bodyInserter;
