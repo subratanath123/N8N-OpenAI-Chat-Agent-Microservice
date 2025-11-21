@@ -5,6 +5,7 @@ import net.ai.chatbot.dao.ChatBotDao;
 import net.ai.chatbot.dto.UserChatHistory;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationRequest;
 import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.entity.ChatBotTask;
 import net.ai.chatbot.entity.KnowledgeBase;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.data.domain.Sort;
@@ -88,7 +89,15 @@ public class ChatBotService {
 
         ChatBot saved = chatBotDao.save(chatbot);
 
-        postSaveEventTrigger(saved);
+        ChatBotTask chatBotTask = ChatBotTask.builder()
+                .chatbotId(chatbot.getId())
+                .fileIds(chatbot.getFileIds())
+                .qaPairs(chatbot.getQaPairs())
+                .addedTexts(chatbot.getAddedTexts())
+                .addedWebsites(chatbot.getAddedWebsites())
+                .build();
+
+        postSaveEventTrigger(chatBotTask);
 
         log.info("Chatbot created successfully with ID: {}", saved.getId());
 
@@ -156,6 +165,16 @@ public class ChatBotService {
 
         updated = chatBotDao.save(updated);
 
+        ChatBotTask chatBotTask = ChatBotTask.builder()
+                .chatbotId(updated.getId())
+                .fileIds(request.getFileIds())
+                .qaPairs(request.getQaPairs())
+                .addedTexts(request.getAddedTexts())
+                .addedWebsites(request.getAddedWebsites())
+                .build();
+
+        postSaveEventTrigger(chatBotTask);
+
         log.info("Chatbot updated successfully: {}", id);
 
         return updated;
@@ -220,7 +239,7 @@ public class ChatBotService {
         Criteria criteria = Criteria.where("chatbotId").is(chatbotId)
                 .and("conversationid").is(conversationId);
 
-        if(!AuthUtils.isAdmin()) {
+        if (!AuthUtils.isAdmin()) {
             criteria = criteria.and("email").is(AuthUtils.getEmail());
         }
 
@@ -238,15 +257,15 @@ public class ChatBotService {
     /**
      * Event Trigger for post processing of chatbot creation
      */
-    private void postSaveEventTrigger(ChatBot chatBot) {
+    private void postSaveEventTrigger(ChatBotTask chatBotTask) {
         ObjectRecord<String, String> record = StreamRecords
                 .newRecord()
-                .ofObject(chatBot.getId())
+                .ofObject(chatBotTask.getId())
                 .withStreamKey(CHAT_BOT_CREATE_EVENT_STREAM);
 
         RecordId recordId = redisTemplate.opsForStream().add(record);
 
-        log.info("redis event created for chatbot: {}, redis eventId:{}, for user: {}", chatBot.getId(), recordId, AuthUtils.getEmail());
+        log.info("redis event created for chatBotTask:{} chatbot: {}, redis eventId:{}, for user: {}", chatBotTask.getId(), chatBotTask.getChatbotId(), recordId, AuthUtils.getEmail());
     }
 }
 

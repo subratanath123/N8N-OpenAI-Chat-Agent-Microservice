@@ -1,9 +1,9 @@
 package net.ai.chatbot.service.redis;
 
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.FileUpload;
 import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.entity.ChatBotTask;
 import net.ai.chatbot.entity.KnowledgeBase;
 import net.ai.chatbot.enums.KnowledgeBaseType;
 import net.ai.chatbot.service.mongodb.MongodbVectorService;
@@ -16,7 +16,6 @@ import org.springframework.data.redis.connection.stream.ObjectRecord;
 import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.util.StringUtils;
 
-import java.time.Instant;
 import java.util.Date;
 import java.util.List;
 import java.util.Objects;
@@ -44,7 +43,10 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
     public void onMessage(ObjectRecord<String, String> record) {
         log.info("Message is consuming for website crawl event {}", record.getId());
 
-        ChatBot chatBot = getChatbot(record);
+        ChatBotTask chatBotTask = getChatbotTask(record);
+        if (chatBotTask == null) return;
+
+        ChatBot chatBot = getChatbot(chatBotTask.getChatbotId());
         if (chatBot == null) return;
 
         String knowledgebaseCollectionName = mongodbVectorService.getKnowledgebaseCollectionName(chatBot.getId());
@@ -62,8 +64,8 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
         );
 
         //Training PDF Files
-        if (Objects.nonNull(chatBot.getFileIds()) && !chatBot.getFileIds().isEmpty()) {
-            getFileList(chatBot.getFileIds())
+        if (Objects.nonNull(chatBotTask.getFileIds()) && !chatBotTask.getFileIds().isEmpty()) {
+            getFileList(chatBotTask.getFileIds())
                     .forEach(fileUpload -> {
                         n8nWebhookService.submitAttachmentToN8nKnowledgebase(
                                 fileUpload.getData(),
@@ -89,8 +91,8 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
 
         String knowledgebase = "";
 
-        if (Objects.nonNull(chatBot.getQaPairs()) && !chatBot.getQaPairs().isEmpty()) {
-            knowledgebase += chatBot.getQaPairs()
+        if (Objects.nonNull(chatBotTask.getQaPairs()) && !chatBotTask.getQaPairs().isEmpty()) {
+            knowledgebase += chatBotTask.getQaPairs()
                     .stream()
                     .map(qaPair -> "If user Question is: " + qaPair.getQuestion() + ", Your Answer should be: " + qaPair.getAnswer())
                     .collect(Collectors.joining(";"));
@@ -106,8 +108,8 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
             mongoTemplate.save(knowledgeBase);
         }
 
-        if (Objects.nonNull(chatBot.getAddedTexts()) && !chatBot.getAddedTexts().isEmpty()) {
-            knowledgebase += "Another Knowledge base List: " + String.join(";", chatBot.getAddedTexts());
+        if (Objects.nonNull(chatBotTask.getAddedTexts()) && !chatBotTask.getAddedTexts().isEmpty()) {
+            knowledgebase += "Another Knowledge base List: " + String.join(";", chatBotTask.getAddedTexts());
         }
 
         //Training Textual Knowledegebase
@@ -132,10 +134,10 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
             mongoTemplate.save(knowledgeBase);
         }
 
-        if (Objects.nonNull(chatBot.getAddedWebsites())
-                && !chatBot.getAddedWebsites().isEmpty()) {
+        if (Objects.nonNull(chatBotTask.getAddedWebsites())
+                && !chatBotTask.getAddedWebsites().isEmpty()) {
 
-            chatBot.getAddedWebsites()
+            chatBotTask.getAddedWebsites()
                     .forEach(websiteUrl -> crawlWebsite(record, chatBot, websiteUrl, knowledgebaseCollectionName, knowledgebaseVectorIndexName));
         }
 
@@ -178,12 +180,19 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
         }
     }
 
-    private ChatBot getChatbot(ObjectRecord<String, String> record) {
-        String chatbotId = record.getValue();
-
+    private ChatBot getChatbot(String chatbotId) {
         return mongoTemplate.findOne(
                 new Query().addCriteria(Criteria.where("id").is(chatbotId)),
                 ChatBot.class
+        );
+    }
+
+    private ChatBotTask getChatbotTask(ObjectRecord<String, String> record) {
+        String chatbotTaskId = record.getValue();
+
+        return mongoTemplate.findOne(
+                new Query().addCriteria(Criteria.where("id").is(chatbotTaskId)),
+                ChatBotTask.class
         );
     }
 
