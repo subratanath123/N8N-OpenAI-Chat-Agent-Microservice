@@ -20,7 +20,7 @@ public class ApiConfig {
         http
                 .csrf(csrf -> csrf.disable())
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/v1/api/n8n/anonymous/**")
+                        .requestMatchers("/v1/api/n8n/anonymous/**", "/v1/api/public/**")
                         .permitAll()
                         .anyRequest().authenticated()
                 )

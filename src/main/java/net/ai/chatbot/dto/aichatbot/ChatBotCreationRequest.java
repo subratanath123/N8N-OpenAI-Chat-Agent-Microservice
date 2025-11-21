@@ -35,8 +35,7 @@ public class ChatBotCreationRequest {
     private String instructions;
     
     private Boolean restrictToDataSource;
-    private Boolean customFallbackMessage;
-    
+
     @Size(max = 1000, message = "Fallback message must not exceed 1000 characters")
     private String fallbackMessage;
     
@@ -44,7 +43,9 @@ public class ChatBotCreationRequest {
     private String greetingMessage;
     
     private String selectedDataSource;
-    
+    private String width;
+    private String height;
+
     // Q&A pairs
     @Valid
     @ValidQAPairs

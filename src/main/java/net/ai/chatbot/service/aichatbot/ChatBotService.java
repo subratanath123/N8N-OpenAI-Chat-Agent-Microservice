@@ -2,9 +2,16 @@ package net.ai.chatbot.service.aichatbot;
 
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dao.ChatBotDao;
+import net.ai.chatbot.dto.UserChatHistory;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationRequest;
 import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.entity.KnowledgeBase;
 import net.ai.chatbot.utils.AuthUtils;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.*;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.data.redis.connection.stream.ObjectRecord;
 import org.springframework.data.redis.connection.stream.RecordId;
 import org.springframework.data.redis.connection.stream.StreamRecords;
@@ -22,11 +29,14 @@ import static net.ai.chatbot.constants.Constants.CHAT_BOT_CREATE_EVENT_STREAM;
 public class ChatBotService {
 
     private final ChatBotDao chatBotDao;
+    private final MongoTemplate mongoTemplate;
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    public ChatBotService(ChatBotDao chatBotDao, RedisTemplate<String, String> redisTemplate) {
+    public ChatBotService(ChatBotDao chatBotDao, MongoTemplate mongoTemplate,
+                          RedisTemplate<String, String> redisTemplate) {
         this.chatBotDao = chatBotDao;
+        this.mongoTemplate = mongoTemplate;
         this.redisTemplate = redisTemplate;
     }
 
@@ -61,10 +71,11 @@ public class ChatBotService {
                 .hideName(request.getHideName())
                 .instructions(request.getInstructions())
                 .restrictToDataSource(request.getRestrictToDataSource())
-                .customFallbackMessage(request.getCustomFallbackMessage())
                 .fallbackMessage(request.getFallbackMessage())
                 .greetingMessage(request.getGreetingMessage())
                 .selectedDataSource(request.getSelectedDataSource())
+                .width(request.getWidth())
+                .height(request.getHeight())
                 .qaPairs(qaPairs)
                 .fileIds(request.getFileIds())
                 .addedWebsites(request.getAddedWebsites())
@@ -93,51 +104,61 @@ public class ChatBotService {
     }
 
     /**
+     * Retrieve getKnowledgeBaseList
+     */
+    public List<KnowledgeBase> getKnowledgeBaseList(String id) {
+        log.info("Retrieving getKnowledgeBaseList: {}", id);
+
+        return mongoTemplate.find(
+                new Query().addCriteria(Criteria.where("chatbotId").is(id)),
+                KnowledgeBase.class
+        );
+    }
+
+    /**
      * Update chatbot configuration
      */
     @Transactional
-    public void updateChatBot(String id, ChatBotCreationRequest request) {
+    public ChatBot updateChatBot(String id, ChatBotCreationRequest request) {
         log.info("Updating chatbot: {}", id);
 
         ChatBot existing = chatBotDao.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Chatbot not found with ID: " + id));
 
-        // Convert Q&A pairs from DTO to Entity
-        List<ChatBot.QAPair> qaPairs = null;
-        if (request.getQaPairs() != null) {
-            qaPairs = request.getQaPairs().stream()
-                    .map(qa -> ChatBot.QAPair.builder()
-                            .question(qa.getQuestion())
-                            .answer(qa.getAnswer())
-                            .build())
-                    .toList();
-        }
+        existing.getFileIds().addAll(request.getFileIds());
+        existing.getQaPairs().addAll(request.getQaPairs());
+        existing.getAddedTexts().addAll(request.getAddedTexts());
+        existing.getAddedWebsites().addAll(request.getAddedWebsites());
 
         // Update fields
         ChatBot updated = ChatBot.builder()
                 .id(existing.getId())
+                .email(existing.getEmail())
+                .updatedAt(new Date())
+                .status(existing.getStatus())
+                .fileIds(existing.getFileIds())
+                .qaPairs(existing.getQaPairs())
+                .addedTexts(existing.getAddedTexts())
+                .addedWebsites(existing.getAddedWebsites())
+                .createdBy(existing.getCreatedBy())
+                .createdAt(existing.getCreatedAt())
                 .name(request.getName())
                 .title(request.getTitle())
                 .hideName(request.getHideName())
                 .instructions(request.getInstructions())
                 .restrictToDataSource(request.getRestrictToDataSource())
-                .customFallbackMessage(request.getCustomFallbackMessage())
                 .fallbackMessage(request.getFallbackMessage())
                 .greetingMessage(request.getGreetingMessage())
                 .selectedDataSource(request.getSelectedDataSource())
-                .qaPairs(qaPairs)
-                .fileIds(request.getFileIds())
-                .addedWebsites(request.getAddedWebsites())
-                .addedTexts(request.getAddedTexts())
-                .createdBy(existing.getCreatedBy())
-                .createdAt(existing.getCreatedAt())
-                .updatedAt(new Date())
-                .status(existing.getStatus())
+                .width(request.getWidth())
+                .height(request.getHeight())
                 .build();
 
-        chatBotDao.save(updated);
+        updated = chatBotDao.save(updated);
 
         log.info("Chatbot updated successfully: {}", id);
+
+        return updated;
     }
 
     /**
@@ -154,6 +175,56 @@ public class ChatBotService {
         chatBotDao.deleteById(id);
 
         log.info("Chatbot deleted successfully: {}", id);
+    }
+
+    /*
+     * Return first chat of every conversation for the given chatbot
+     */
+    public List<UserChatHistory> getChatConversationList(String chatbotId) {
+        log.info("Getting All conversations: {}", chatbotId);
+
+        MatchOperation match = Aggregation.match(
+                Criteria.where("chatbotId").is(chatbotId)
+        );
+
+        // sort all records inside each conversation by createdAt
+        SortOperation sort = Aggregation.sort(Sort.by(Sort.Direction.ASC, "createdAt"));
+
+        // group by conversationid and extract first fields
+        GroupOperation group = Aggregation.group("conversationid")
+                .first("conversationid").as("conversationid")
+                .first("userMessage").as("userMessage")
+                .first("aiMessage").as("aiMessage")
+                .first("createdAt").as("createdAt")
+                .first("email").as("email")
+                .first("mode").as("mode")
+                .first("isAnonymous").as("isAnonymous");
+
+        // select only required fields
+        ProjectionOperation project = Aggregation.project("conversationid", "userMessage", "aiMessage", "createdAt", "email", "mode", "isAnonymous")
+                .andExclude("_id");
+
+        Aggregation aggregation = Aggregation.newAggregation(match, sort, group, project);
+
+        return mongoTemplate.aggregate(
+                aggregation,
+                "n8n_chat_session_histories",
+                UserChatHistory.class
+        ).getMappedResults();
+    }
+
+    @Transactional
+    public List<UserChatHistory> getChatHistory(String chatbotId, String conversationId) {
+        log.info("Getting All chats of the conversation: {}", conversationId);
+
+        Criteria criteria = Criteria.where("chatbotId").is(chatbotId)
+                .and("conversationid").is(conversationId);
+
+        if(!AuthUtils.isAdmin()) {
+            criteria = criteria.and("email").is(AuthUtils.getEmail());
+        }
+
+        return mongoTemplate.find(new Query().addCriteria(criteria), UserChatHistory.class);
     }
 
     /**

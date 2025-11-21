@@ -2,12 +2,13 @@ package net.ai.chatbot.controller;
 
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.Message;
-import net.ai.chatbot.dto.n8n.N8NChatInput;
+import net.ai.chatbot.dto.UserChatHistory;
 import net.ai.chatbot.dto.n8n.N8NChatResponse;
+import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.service.aichatbot.ChatBotService;
 import net.ai.chatbot.service.n8n.GenericN8NService;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,6 +23,9 @@ public class AnonymousUserChatN8NController {
     @Autowired
     private GenericN8NService<Message, Object> n8nService;
 
+    @Autowired
+    private ChatBotService chatBotService;
+
     //    @Value("${n8n.webhook.knowledgebase.chat.url}")
     private String webhookUrl = "http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea";
     
@@ -31,23 +35,9 @@ public class AnonymousUserChatN8NController {
     @PostMapping("/chat")
     public ResponseEntity<N8NChatResponse<Object>> sendMessage(@RequestBody Message message) {
 
-        N8NChatResponse<Object> response = n8nService.sendMessage(message, webhookUrl);
+        ChatBot chatBot = chatBotService.getChatBot(message.getChatbotId());
 
-        return ResponseEntity.ok(response);
-    }
-
-    /**
-     * Send message with session context
-     */
-    @PostMapping("/chat/session")
-    public ResponseEntity<N8NChatResponse<Object>> sendMessageWithSession(
-            @RequestBody Message message,
-            @RequestParam(required = false) String sessionId) {
-
-        String currentSessionId = sessionId != null ? sessionId : AuthUtils.getEmail();
-        log.info("Received session chat request for workflow: {} with session: {}", currentSessionId);
-
-        N8NChatResponse<Object> response = n8nService.sendMessageWithSession(message, currentSessionId, webhookUrl);
+        N8NChatResponse<Object> response = n8nService.sendMessage(chatBot, message, webhookUrl);
 
         return ResponseEntity.ok(response);
     }

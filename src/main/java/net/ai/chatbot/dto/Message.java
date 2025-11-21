@@ -19,5 +19,10 @@ public class Message {
     private String sessionId;
     private String chatbotId;
 
+    private String greetingMessage;
+    private String instruction;
+    private String fallbackMessage;
+    private String restrictDataSource;
+
 }
 

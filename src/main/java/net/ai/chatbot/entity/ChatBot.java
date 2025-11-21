@@ -24,13 +24,15 @@ public class ChatBot {
     private String email;
     private String name;
     private Boolean hideName;
+
     private String instructions;
     private Boolean restrictToDataSource;
-    private Boolean customFallbackMessage;
     private String fallbackMessage;
     private String greetingMessage;
     private String selectedDataSource;
-    
+    private String width;
+    private String height;
+
     // Q&A pairs
     private List<QAPair> qaPairs;
     

@@ -1,0 +1,50 @@
+package net.ai.chatbot.controller.aichatbot;
+
+import lombok.extern.slf4j.Slf4j;
+import net.ai.chatbot.dto.UserChatHistory;
+import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.service.aichatbot.ChatBotService;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+
+@Slf4j
+@RestController
+@CrossOrigin(originPatterns = "*", allowCredentials = "true", allowedHeaders = "*")
+@RequestMapping("/v1/api/public")
+public class AIChatBotPubliceEndpointController {
+
+    private final ChatBotService chatBotService;
+
+    public AIChatBotPubliceEndpointController(ChatBotService chatBotService) {
+        this.chatBotService = chatBotService;
+    }
+
+    /**
+     * Get chatbot by ID
+     * GET /v1/api/chatbot/{id}
+     */
+    @GetMapping("/chatbot/{id}")
+    public ResponseEntity<ChatBot> getChatBot(@PathVariable String id) {
+        log.info("Getting chatbot: {}", id);
+
+        var chatbot = chatBotService.getChatBot(id);
+
+        if (chatbot == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(chatbot);
+    }
+
+    @GetMapping("/chatHistory/{chatbotId}/{conversationId}")
+    public ResponseEntity<List<UserChatHistory>> getChatHistory(@PathVariable String chatbotId, @PathVariable String conversationId) {
+
+        List<UserChatHistory> chatHistories = chatBotService.getChatHistory(chatbotId, conversationId);
+
+        return ResponseEntity.ok(chatHistories);
+    }
+
+}
+

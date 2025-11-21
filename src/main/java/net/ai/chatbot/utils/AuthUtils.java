@@ -7,7 +7,15 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 public class AuthUtils {
 
     public static String getEmail() {
-        JwtAuthenticationToken authenticationToken = (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        var context = SecurityContextHolder.getContext();
+        if (context == null) {
+            return null;
+        }
+
+        var authentication = context.getAuthentication();
+        if (!(authentication instanceof JwtAuthenticationToken authenticationToken)) {
+            return null;
+        }
 
         String sub = (String) authenticationToken.getTokenAttributes().get("sub");
 
@@ -16,6 +24,9 @@ public class AuthUtils {
                 : (String) authenticationToken.getTokenAttributes().get("email");
     }
 
+    public static boolean isAdmin() {
+        return "shuvra.dev9@gmail.com".equals(getEmail());
+    }
 
     public static User getUser() {
         JwtAuthenticationToken authenticationToken = (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();

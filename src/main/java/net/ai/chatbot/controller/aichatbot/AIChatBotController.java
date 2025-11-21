@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationRequest;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationResponse;
 import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.entity.KnowledgeBase;
 import net.ai.chatbot.service.aichatbot.ChatBotService;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.http.HttpStatus;
@@ -100,36 +101,26 @@ public class AIChatBotController {
      * GET /v1/api/chatbot/{id}
      */
     @GetMapping("/{id}")
-    public ResponseEntity<ChatBotCreationResponse> getChatBot(@PathVariable String id) {
-        try {
-            log.info("Getting chatbot: {}", id);
+    public ResponseEntity<ChatBot> getChatBot(@PathVariable String id) {
+        log.info("Getting chatbot: {}", id);
 
-            var chatbot = chatBotService.getChatBot(id);
+        var chatbot = chatBotService.getChatBot(id);
 
-            if (chatbot == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            ChatBotCreationResponse response = ChatBotCreationResponse.builder()
-                    .id(chatbot.getId())
-                    .name(chatbot.getName())
-                    .title(chatbot.getTitle())
-                    .createdAt(chatbot.getCreatedAt())
-                    .createdBy(chatbot.getCreatedBy())
-                    .status("SUCCESS")
-                    .message("Chatbot retrieved")
-                    .build();
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("Error retrieving chatbot", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ChatBotCreationResponse.builder()
-                            .status("FAILED")
-                            .message("Failed to retrieve chatbot: " + e.getMessage())
-                            .build());
+        if (chatbot == null) {
+            return ResponseEntity.notFound().build();
         }
+
+        return ResponseEntity.ok(chatbot);
+    }
+
+    /**
+     * Get knowledgebase by ID
+     * GET /v1/api/chatbot//{id}/knowledgebase/list
+     */
+    @GetMapping("/{id}/knowledge-bases")
+    public List<KnowledgeBase> getKnowledgebaseList(@PathVariable String id) {
+        log.info("Getting chatbot knowledge base list: {}", id);
+        return chatBotService.getKnowledgeBaseList(id);
     }
 
     /**
@@ -137,61 +128,13 @@ public class AIChatBotController {
      * PUT /v1/api/chatbot/{id}
      */
     @PutMapping("/{id}")
-    public ResponseEntity<ChatBotCreationResponse> updateChatBot(
-            @PathVariable String id,
-            @Valid @RequestBody ChatBotCreationRequest request) {
-        try {
-            log.info("Updating chatbot: {}", id);
+    public ResponseEntity<ChatBot> updateChatBot(@PathVariable String id,
+                                                 @Valid @RequestBody ChatBotCreationRequest request) {
+        log.info("Updating chatbot: {}", id);
 
-            chatBotService.updateChatBot(id, request);
+        ChatBot chatBot = chatBotService.updateChatBot(id, request);
 
-            ChatBotCreationResponse response = ChatBotCreationResponse.builder()
-                    .id(id)
-                    .name(request.getName())
-                    .title(request.getTitle())
-                    .status("SUCCESS")
-                    .message("Chatbot updated successfully")
-                    .build();
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("Error updating chatbot", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ChatBotCreationResponse.builder()
-                            .status("FAILED")
-                            .message("Failed to update chatbot: " + e.getMessage())
-                            .build());
-        }
-    }
-
-    /**
-     * Delete chatbot
-     * DELETE /v1/api/chatbot/{id}
-     */
-    @DeleteMapping("/{id}")
-    public ResponseEntity<ChatBotCreationResponse> deleteChatBot(@PathVariable String id) {
-        try {
-            log.info("Deleting chatbot: {}", id);
-
-            chatBotService.deleteChatBot(id);
-
-            ChatBotCreationResponse response = ChatBotCreationResponse.builder()
-                    .id(id)
-                    .status("SUCCESS")
-                    .message("Chatbot deleted successfully")
-                    .build();
-
-            return ResponseEntity.ok(response);
-
-        } catch (Exception e) {
-            log.error("Error deleting chatbot", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(ChatBotCreationResponse.builder()
-                            .status("FAILED")
-                            .message("Failed to delete chatbot: " + e.getMessage())
-                            .build());
-        }
+        return ResponseEntity.ok(chatBot);
     }
 }
 

@@ -1,8 +1,11 @@
 package net.ai.chatbot.service.redis;
 
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.FileUpload;
 import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.entity.KnowledgeBase;
+import net.ai.chatbot.enums.KnowledgeBaseType;
 import net.ai.chatbot.service.mongodb.MongodbVectorService;
 import net.ai.chatbot.service.n8n.N8nWebhookService;
 import net.ai.chatbot.service.training.WebsiteCrawler;
@@ -13,6 +16,8 @@ import org.springframework.data.redis.connection.stream.ObjectRecord;
 import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.util.StringUtils;
 
+import java.time.Instant;
+import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
@@ -69,6 +74,16 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
                                 fileUpload.getContentType(),
                                 knowledgeBaseTrainingWebhookUrl
                         );
+
+                        KnowledgeBase knowledgeBase = KnowledgeBase.builder()
+                                .knowledgeOf(fileUpload.getFileName())
+                                .chatbotId(chatBot.getId())
+                                .knowledgeType(KnowledgeBaseType.PDF)
+                                .created(new Date().toInstant())
+                                .createdBy(chatBot.getEmail())
+                                .build();
+
+                        mongoTemplate.save(knowledgeBase);
                     });
         }
 
@@ -80,10 +95,19 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
                     .map(qaPair -> "If user Question is: " + qaPair.getQuestion() + ", Your Answer should be: " + qaPair.getAnswer())
                     .collect(Collectors.joining(";"));
 
+            KnowledgeBase knowledgeBase = KnowledgeBase.builder()
+                    .knowledgeOf("QA PAIR")
+                    .chatbotId(chatBot.getId())
+                    .knowledgeType(KnowledgeBaseType.QA)
+                    .created(new Date().toInstant())
+                    .createdBy(chatBot.getEmail())
+                    .build();
+
+            mongoTemplate.save(knowledgeBase);
         }
 
         if (Objects.nonNull(chatBot.getAddedTexts()) && !chatBot.getAddedTexts().isEmpty()) {
-            knowledgebase += "Another Knowledegbase List: " + String.join(";", chatBot.getAddedTexts());
+            knowledgebase += "Another Knowledge base List: " + String.join(";", chatBot.getAddedTexts());
         }
 
         //Training Textual Knowledegebase
@@ -93,9 +117,19 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
                     chatBot.getEmail(),
                     knowledgebaseCollectionName,
                     knowledgebaseVectorIndexName,
-                    "other knowledgebase",
+                    "other knowledge base",
                     knowledgeBaseTrainingWebhookUrl
             );
+
+            KnowledgeBase knowledgeBase = KnowledgeBase.builder()
+                    .knowledgeOf("Textual Data")
+                    .chatbotId(chatBot.getId())
+                    .knowledgeType(KnowledgeBaseType.TEXT)
+                    .created(new Date().toInstant())
+                    .createdBy(chatBot.getEmail())
+                    .build();
+
+            mongoTemplate.save(knowledgeBase);
         }
 
         if (Objects.nonNull(chatBot.getAddedWebsites())
@@ -117,15 +151,27 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
                     chatBot.getEmail(),
                     5,
                     50,
-                    scrappedData ->
-                            n8nWebhookService.submitTextContentToN8nKnowledgebase(
-                                    scrappedData.html(),
-                                    chatBot.getEmail(),
-                                    knowledgebaseCollectionName,
-                                    knowledgebaseVectorIndexName,
-                                    "other knowledgebase",
-                                    knowledgeBaseTrainingWebhookUrl
-                            )
+                    scrappedData ->{
+                        n8nWebhookService.submitTextContentToN8nKnowledgebase(
+                                scrappedData.html(),
+                                chatBot.getEmail(),
+                                knowledgebaseCollectionName,
+                                knowledgebaseVectorIndexName,
+                                "other knowledgebase",
+                                knowledgeBaseTrainingWebhookUrl
+                        );
+
+                        KnowledgeBase knowledgeBase = KnowledgeBase.builder()
+                                .knowledgeOf(scrappedData.url())
+                                .chatbotId(chatBot.getId())
+                                .knowledgeType(KnowledgeBaseType.WEBSITE)
+                                .created(new Date().toInstant())
+                                .createdBy("system")
+                                .build();
+
+                        mongoTemplate.save(knowledgeBase);
+                    }
+
             );
         } catch (Exception e) {
             log.info("Message is failed to process for website crawl event {}", record.getId());

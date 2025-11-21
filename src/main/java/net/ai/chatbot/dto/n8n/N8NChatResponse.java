@@ -1,5 +1,6 @@
 package net.ai.chatbot.dto.n8n;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -15,16 +16,12 @@ import java.util.Map;
 public class N8NChatResponse<T> {
 
     private boolean success;
-    private String message;
-    private T data;
     private List<T> choices;
     private Map<String, Object> metadata;
     private long timestamp;
     private String errorCode;
     private String errorMessage;
-    
-    // N8N specific fields
-    private String output;
+
     private Map<String, Object> body;
     private Object result;
     private String status;
@@ -34,7 +31,6 @@ public class N8NChatResponse<T> {
     public static <T> N8NChatResponse<T> success(T data) {
         return N8NChatResponse.<T>builder()
                 .success(true)
-                .data(data)
                 .timestamp(System.currentTimeMillis())
                 .build();
     }
@@ -72,18 +68,9 @@ public class N8NChatResponse<T> {
         this.metadata = metadata;
         return this;
     }
-    
-    // Helper method to get the actual response content
+
+    @JsonProperty("responseContent")
     public String getResponseContent() {
-        if (output != null) {
-            return output;
-        }
-        if (message != null) {
-            return message;
-        }
-        if (data != null) {
-            return data.toString();
-        }
         if (result != null) {
             return result.toString();
         }
