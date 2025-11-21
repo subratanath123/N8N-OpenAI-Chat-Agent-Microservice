@@ -41,8 +41,8 @@ public class RedisConfig {
     @Value("${spring.data.redis.password}")
     private String redisPassword;
 
-    @Value("${n8n.webhook.knowledgebase.train.url}")
-    private String webhookKnowledgebaseTrainUrl;
+//    @Value("${n8n.webhook.knowledgebase.train.url}")
+    private String webhookKnowledgebaseTrainUrl = "http://localhost:5678/webhook/cacb416b-286a-4524-9b29-9d8a81bb5864";
 
     private final RedisConsumerGroupService redisConsumerGroupService;
 

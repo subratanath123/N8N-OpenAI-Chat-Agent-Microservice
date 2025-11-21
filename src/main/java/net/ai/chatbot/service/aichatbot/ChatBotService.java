@@ -5,6 +5,7 @@ import net.ai.chatbot.dao.ChatBotDao;
 import net.ai.chatbot.dto.UserChatHistory;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationRequest;
 import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.entity.ChatBot.QAPair;
 import net.ai.chatbot.entity.ChatBotTask;
 import net.ai.chatbot.entity.KnowledgeBase;
 import net.ai.chatbot.utils.AuthUtils;
@@ -20,8 +21,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 import static net.ai.chatbot.constants.Constants.CHAT_BOT_CREATE_EVENT_STREAM;
 
@@ -54,10 +54,10 @@ public class ChatBotService {
         }
 
         // Convert Q&A pairs from DTO to Entity
-        List<ChatBot.QAPair> qaPairs = null;
+        List<QAPair> qaPairs = null;
         if (request.getQaPairs() != null) {
             qaPairs = request.getQaPairs().stream()
-                    .map(qa -> ChatBot.QAPair.builder()
+                    .map(qa -> QAPair.builder()
                             .question(qa.getQuestion())
                             .answer(qa.getAnswer())
                             .build())
@@ -97,11 +97,76 @@ public class ChatBotService {
                 .addedWebsites(chatbot.getAddedWebsites())
                 .build();
 
+        chatBotTask = mongoTemplate.save(chatBotTask);
+
         postSaveEventTrigger(chatBotTask);
 
         log.info("Chatbot created successfully with ID: {}", saved.getId());
 
         return saved.getId();
+    }
+
+    /**
+     * Update chatbot configuration
+     */
+    @Transactional
+    public ChatBot updateChatBot(String id, ChatBotCreationRequest request) {
+        log.info("Updating chatbot: {}", id);
+
+        ChatBot existing = chatBotDao.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Chatbot not found with ID: " + id));
+
+        // Merge lists without duplicates
+        List<String> mergedFileIds = mergeList(existing.getFileIds(), request.getFileIds());
+        List<QAPair> mergedQaPairs = mergeList(existing.getQaPairs(), request.getQaPairs());
+        List<String> mergedTexts = mergeList(existing.getAddedTexts(), request.getAddedTexts());
+        List<String> mergedWebsites = mergeList(existing.getAddedWebsites(), request.getAddedWebsites());
+
+        // Build updated ChatBot
+        ChatBot updated = ChatBot.builder()
+                .id(existing.getId())
+                .email(existing.getEmail())
+                .updatedAt(new Date())
+                .status(existing.getStatus())
+                .createdBy(existing.getCreatedBy())
+                .createdAt(existing.getCreatedAt())
+                .name(request.getName())
+                .title(request.getTitle())
+                .hideName(request.getHideName())
+                .instructions(request.getInstructions())
+                .restrictToDataSource(request.getRestrictToDataSource())
+                .fallbackMessage(request.getFallbackMessage())
+                .greetingMessage(request.getGreetingMessage())
+                .selectedDataSource(request.getSelectedDataSource())
+                .width(request.getWidth())
+                .height(request.getHeight())
+
+                // merged new + existing
+                .fileIds(mergedFileIds)
+                .qaPairs(mergedQaPairs)
+                .addedTexts(mergedTexts)
+                .addedWebsites(mergedWebsites)
+
+                .build();
+
+        updated = chatBotDao.save(updated);
+
+        // Build ChatBotTask with merged data
+        ChatBotTask chatBotTask = ChatBotTask.builder()
+                .chatbotId(updated.getId())
+                .fileIds(mergedFileIds)
+                .qaPairs(mergedQaPairs)
+                .addedTexts(mergedTexts)
+                .addedWebsites(mergedWebsites)
+                .build();
+
+        chatBotTask = mongoTemplate.save(chatBotTask);
+
+        postSaveEventTrigger(chatBotTask);
+
+        log.info("Chatbot updated successfully: {}", id);
+
+        return updated;
     }
 
     /**
@@ -125,59 +190,13 @@ public class ChatBotService {
     }
 
     /**
-     * Update chatbot configuration
+     * Utility: merges without duplicates while supporting nulls
      */
-    @Transactional
-    public ChatBot updateChatBot(String id, ChatBotCreationRequest request) {
-        log.info("Updating chatbot: {}", id);
-
-        ChatBot existing = chatBotDao.findById(id)
-                .orElseThrow(() -> new IllegalArgumentException("Chatbot not found with ID: " + id));
-
-        existing.getFileIds().addAll(request.getFileIds());
-        existing.getQaPairs().addAll(request.getQaPairs());
-        existing.getAddedTexts().addAll(request.getAddedTexts());
-        existing.getAddedWebsites().addAll(request.getAddedWebsites());
-
-        // Update fields
-        ChatBot updated = ChatBot.builder()
-                .id(existing.getId())
-                .email(existing.getEmail())
-                .updatedAt(new Date())
-                .status(existing.getStatus())
-                .fileIds(existing.getFileIds())
-                .qaPairs(existing.getQaPairs())
-                .addedTexts(existing.getAddedTexts())
-                .addedWebsites(existing.getAddedWebsites())
-                .createdBy(existing.getCreatedBy())
-                .createdAt(existing.getCreatedAt())
-                .name(request.getName())
-                .title(request.getTitle())
-                .hideName(request.getHideName())
-                .instructions(request.getInstructions())
-                .restrictToDataSource(request.getRestrictToDataSource())
-                .fallbackMessage(request.getFallbackMessage())
-                .greetingMessage(request.getGreetingMessage())
-                .selectedDataSource(request.getSelectedDataSource())
-                .width(request.getWidth())
-                .height(request.getHeight())
-                .build();
-
-        updated = chatBotDao.save(updated);
-
-        ChatBotTask chatBotTask = ChatBotTask.builder()
-                .chatbotId(updated.getId())
-                .fileIds(request.getFileIds())
-                .qaPairs(request.getQaPairs())
-                .addedTexts(request.getAddedTexts())
-                .addedWebsites(request.getAddedWebsites())
-                .build();
-
-        postSaveEventTrigger(chatBotTask);
-
-        log.info("Chatbot updated successfully: {}", id);
-
-        return updated;
+    private <T> List<T> mergeList(List<T> existing, List<T> incoming) {
+        Set<T> set = new LinkedHashSet<>();
+        if (existing != null) set.addAll(existing);
+        if (incoming != null) set.addAll(incoming);
+        return new ArrayList<>(set);
     }
 
     /**
