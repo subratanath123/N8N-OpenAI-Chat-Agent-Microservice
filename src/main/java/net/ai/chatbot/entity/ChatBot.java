@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Transient;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.util.Date;
@@ -16,10 +17,10 @@ import java.util.List;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ChatBot {
-    
+
     @Id
     private String id;
-    
+
     private String title;
     private String email;
     private String name;
@@ -35,22 +36,22 @@ public class ChatBot {
 
     // Q&A pairs
     private List<QAPair> qaPairs;
-    
+
     // Uploaded files (file names or IDs)
     private List<String> fileIds;
-    
+
     // Website URLs to scrape
     private List<String> addedWebsites;
-    
+
     // Plain text content
     private List<String> addedTexts;
-    
+
     // Metadata
     private String createdBy;
     private Date createdAt;
     private Date updatedAt;
     private String status; // CREATED, TRAINING, COMPLETED, FAILED
-    
+
     // Inner class for Q&A pairs
     @Data
     @Builder
@@ -60,5 +61,17 @@ public class ChatBot {
         private String question;
         private String answer;
     }
+
+    @Transient
+    private MessengerIntegration messengerIntegration;
+
+    public String getChatbotknowledgebasecollection() {
+        return "jade-ai-knowledgebase-" + id;
+    }
+
+    public String getVectorIndexName() {
+        return "jade-ai-vector-index-" + id;
+    }
+
 }
 

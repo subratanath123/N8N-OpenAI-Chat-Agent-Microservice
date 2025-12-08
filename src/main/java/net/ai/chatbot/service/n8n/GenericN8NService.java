@@ -43,8 +43,8 @@ public class GenericN8NService<T, R> {
                 message.getChatbotId(),
                 message.getMessage(),
                 Optional.ofNullable(message.getSessionId()).orElse(null),
-                "jade-ai-knowledgebase-" + Optional.ofNullable(message.getChatbotId()).orElse(null),
-                "jade-ai-vector-index-" + Optional.ofNullable(message.getChatbotId()).orElse(null),
+                chatBot.getChatbotknowledgebasecollection(),
+                chatBot.getVectorIndexName(),
                 Collections.emptyMap(),
                 Collections.emptyMap()
         );

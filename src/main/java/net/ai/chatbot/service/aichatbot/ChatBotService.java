@@ -8,6 +8,7 @@ import net.ai.chatbot.entity.ChatBot;
 import net.ai.chatbot.entity.ChatBot.QAPair;
 import net.ai.chatbot.entity.ChatBotTask;
 import net.ai.chatbot.entity.KnowledgeBase;
+import net.ai.chatbot.entity.MessengerIntegration;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -187,6 +188,32 @@ public class ChatBotService {
                 new Query().addCriteria(Criteria.where("chatbotId").is(id)),
                 KnowledgeBase.class
         );
+    }
+
+    /**
+     * Retrieve getChatBotFrom MessengerId
+     */
+    public ChatBot getChabotFromMessengerId(String messengerId) {
+        log.info("Retrieving getChabot for messengerId: {}", messengerId);
+
+        MessengerIntegration messengerIntegration = getMessengerIntegration(messengerId);
+
+        if (messengerIntegration == null) {
+            return null;
+        }
+
+        ChatBot chatBot = getChatBot(messengerIntegration.chatbotId());
+        chatBot.setMessengerIntegration(messengerIntegration);
+
+        return chatBot;
+    }
+
+    public MessengerIntegration getMessengerIntegration(String messengerId) {
+        MessengerIntegration messengerIntegration = mongoTemplate.findOne(
+                new Query().addCriteria(Criteria.where("pageId").is(messengerId)),
+                MessengerIntegration.class
+        );
+        return messengerIntegration;
     }
 
     /**

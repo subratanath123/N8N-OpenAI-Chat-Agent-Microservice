@@ -3,7 +3,9 @@ package net.ai.chatbot.controller.aichatbot;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.UserChatHistory;
 import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.entity.MessengerIntegration;
 import net.ai.chatbot.service.aichatbot.ChatBotService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -44,6 +46,20 @@ public class AIChatBotPubliceEndpointController {
         List<UserChatHistory> chatHistories = chatBotService.getChatHistory(chatbotId, conversationId);
 
         return ResponseEntity.ok(chatHistories);
+    }
+
+    @GetMapping("/chatbot/messenger/{messengerId}")
+    public ResponseEntity<ChatBot> getMessengerSetup(@PathVariable String messengerId) {
+        try {
+
+            log.info("Getting chatbot for messengerId: {}", messengerId);
+
+            return ResponseEntity.ok(chatBotService.getChabotFromMessengerId(messengerId));
+
+        } catch (Exception e) {
+            log.error("Error getting messenger setup", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 
 }
