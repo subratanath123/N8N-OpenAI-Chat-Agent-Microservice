@@ -65,6 +65,9 @@ public class ChatBot {
     @Transient
     private MessengerIntegration messengerIntegration;
 
+    @Transient
+    private WhatsAppIntegration whatsAppIntegration;
+
     public String getChatbotknowledgebasecollection() {
         return "jade-ai-knowledgebase-" + id;
     }

@@ -4,11 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dao.ChatBotDao;
 import net.ai.chatbot.dto.UserChatHistory;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationRequest;
-import net.ai.chatbot.entity.ChatBot;
+import net.ai.chatbot.entity.*;
 import net.ai.chatbot.entity.ChatBot.QAPair;
-import net.ai.chatbot.entity.ChatBotTask;
-import net.ai.chatbot.entity.KnowledgeBase;
-import net.ai.chatbot.entity.MessengerIntegration;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -208,12 +205,38 @@ public class ChatBotService {
         return chatBot;
     }
 
+    /**
+     * Retrieve getChatBotFrom MessengerId
+     */
+    public ChatBot getChabotFromPhoneNumberID(String phonenumberId) {
+        log.info("Retrieving getChabot for whatsappId: {}", phonenumberId);
+
+        WhatsAppIntegration whatsAppIntegration = getWhatsappIntegration(phonenumberId);
+
+        if (whatsAppIntegration == null) {
+            return null;
+        }
+
+        ChatBot chatBot = getChatBot(whatsAppIntegration.chatbotId());
+        chatBot.setWhatsAppIntegration(whatsAppIntegration);
+
+        return chatBot;
+    }
+
     public MessengerIntegration getMessengerIntegration(String messengerId) {
         MessengerIntegration messengerIntegration = mongoTemplate.findOne(
                 new Query().addCriteria(Criteria.where("pageId").is(messengerId)),
                 MessengerIntegration.class
         );
         return messengerIntegration;
+    }
+
+    public WhatsAppIntegration getWhatsappIntegration(String phoneNumberId) {
+        WhatsAppIntegration whatsAppIntegration = mongoTemplate.findOne(
+                new Query().addCriteria(Criteria.where("phoneNumberId").is(phoneNumberId)),
+                WhatsAppIntegration.class
+        );
+        return whatsAppIntegration;
     }
 
     /**

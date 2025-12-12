@@ -4,7 +4,9 @@ import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationResponse;
 import net.ai.chatbot.entity.MessengerIntegration;
+import net.ai.chatbot.entity.WhatsAppIntegration;
 import net.ai.chatbot.service.integration.MessengerIntegrationService;
+import net.ai.chatbot.service.integration.WhatsAppIntegrationService;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,9 +21,12 @@ import java.util.Date;
 public class ExternalIntegrationController {
 
     private final MessengerIntegrationService messengerIntegrationService;
+    private final WhatsAppIntegrationService whatsAppIntegrationService;
 
-    public ExternalIntegrationController(MessengerIntegrationService messengerIntegrationService) {
+    public ExternalIntegrationController(MessengerIntegrationService messengerIntegrationService,
+                                         WhatsAppIntegrationService whatsAppIntegrationService) {
         this.messengerIntegrationService = messengerIntegrationService;
+        this.whatsAppIntegrationService = whatsAppIntegrationService;
     }
 
     /**
@@ -113,6 +118,99 @@ public class ExternalIntegrationController {
                     .body(ChatBotCreationResponse.builder()
                             .status("FAILED")
                             .message("Failed to toggle messenger integration: " + e.getMessage())
+                            .build());
+        }
+    }
+
+    /**
+     * Create a new WhatsApp Setup configuration
+     * POST /v1/api/chatbot/whatsapp/setup
+     */
+    @PostMapping("/whatsapp/setup")
+    public ResponseEntity<ChatBotCreationResponse> createWhatsAppSetup(@Valid @RequestBody WhatsAppIntegration whatsAppIntegration) {
+        try {
+            String userEmail = AuthUtils.getEmail();
+
+            WhatsAppIntegration savedIntegration = whatsAppIntegrationService
+                    .createOrUpdateWhatsAppIntegration(whatsAppIntegration, userEmail);
+
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(ChatBotCreationResponse.builder()
+                            .id(savedIntegration.id())
+                            .status("SUCCESS")
+                            .message("WhatsApp setup completed successfully")
+                            .createdAt(new Date())
+                            .createdBy(userEmail)
+                            .build());
+
+        } catch (Exception e) {
+            log.error("Error creating WhatsApp setup", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ChatBotCreationResponse.builder()
+                            .status("FAILED")
+                            .message("Failed to create WhatsApp setup: " + e.getMessage())
+                            .build());
+        }
+    }
+
+    /**
+     * Get WhatsApp Setup configuration by chatbot ID
+     * GET /v1/api/chatbot/whatsapp/{chatbotId}
+     */
+    @GetMapping("/whatsapp/{chatbotId}")
+    public ResponseEntity<WhatsAppIntegration> getWhatsAppSetup(@PathVariable String chatbotId) {
+        try {
+            String userEmail = AuthUtils.getEmail();
+
+            log.info("Getting WhatsApp setup for chatbot: {} by user: {}", chatbotId, userEmail);
+
+            return whatsAppIntegrationService
+                    .getWhatsAppIntegrationByChatbotId(chatbotId, userEmail)
+                    .map(integration -> {
+                        log.info("WhatsApp integration found for chatbot: {}", chatbotId);
+                        return ResponseEntity.ok(integration);
+                    })
+                    .orElseGet(() -> {
+                        log.info("WhatsApp integration not found for chatbot: {}", chatbotId);
+                        return ResponseEntity.notFound().build();
+                    });
+
+        } catch (Exception e) {
+            log.error("Error getting WhatsApp setup", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Toggle WhatsApp Integration enabled/disabled status
+     * PUT /v1/api/chatbot/whatsapp/{chatbotId}/toggle
+     */
+    @PutMapping("/whatsapp/{chatbotId}/toggle")
+    public ResponseEntity<ChatBotCreationResponse> toggleWhatsAppIntegration(
+            @PathVariable String chatbotId,
+            @RequestParam(defaultValue = "false") Boolean enabled) {
+        try {
+            String userEmail = AuthUtils.getEmail();
+
+            log.info("Toggling WhatsApp integration for chatbot: {} to {} by user: {}", chatbotId, enabled, userEmail);
+
+            WhatsAppIntegration updatedIntegration = whatsAppIntegrationService
+                    .toggleWhatsAppIntegrationStatus(chatbotId, enabled, userEmail);
+
+            return ResponseEntity.ok(ChatBotCreationResponse.builder()
+                    .id(updatedIntegration.id())
+                    .status("SUCCESS")
+                    .message("WhatsApp integration " + (enabled ? "enabled" : "disabled") + " successfully")
+                    .createdAt(new Date())
+                    .createdBy(userEmail)
+                    .build());
+
+        } catch (Exception e) {
+            log.error("Error toggling WhatsApp integration", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ChatBotCreationResponse.builder()
+                            .status("FAILED")
+                            .message("Failed to toggle WhatsApp integration: " + e.getMessage())
                             .build());
         }
     }

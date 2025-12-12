@@ -3,7 +3,6 @@ package net.ai.chatbot.controller.aichatbot;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.UserChatHistory;
 import net.ai.chatbot.entity.ChatBot;
-import net.ai.chatbot.entity.MessengerIntegration;
 import net.ai.chatbot.service.aichatbot.ChatBotService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,11 +14,11 @@ import java.util.List;
 @RestController
 @CrossOrigin(originPatterns = "*", allowCredentials = "true", allowedHeaders = "*")
 @RequestMapping("/v1/api/public")
-public class AIChatBotPubliceEndpointController {
+public class AIChatBotPublicEndpointController {
 
     private final ChatBotService chatBotService;
 
-    public AIChatBotPubliceEndpointController(ChatBotService chatBotService) {
+    public AIChatBotPublicEndpointController(ChatBotService chatBotService) {
         this.chatBotService = chatBotService;
     }
 
@@ -55,6 +54,20 @@ public class AIChatBotPubliceEndpointController {
             log.info("Getting chatbot for messengerId: {}", messengerId);
 
             return ResponseEntity.ok(chatBotService.getChabotFromMessengerId(messengerId));
+
+        } catch (Exception e) {
+            log.error("Error getting messenger setup", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/chatbot/whatsapp/{phonenumberId}")
+    public ResponseEntity<ChatBot> getWhatsappSetup(@PathVariable String phonenumberId) {
+        try {
+
+            log.info("Getting chatbot for phonenumberId: {}", phonenumberId);
+
+            return ResponseEntity.ok(chatBotService.getChabotFromPhoneNumberID(phonenumberId));
 
         } catch (Exception e) {
             log.error("Error getting messenger setup", e);
