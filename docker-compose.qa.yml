@@ -1,0 +1,32 @@
+services:
+  jade-ai-bot:
+    # Image should be published to registry before deployment
+    # Update image name to include registry if using private registry
+    # Example: registry.example.com/jade-ai-bot:qa
+    image: jade-ai-bot:qa
+    container_name: jade-ai-bot-qa
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=qa
+      - JAVA_OPTS=-Xmx768m -Xms384m
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  chatbot-network:
+    driver: bridge
+
+

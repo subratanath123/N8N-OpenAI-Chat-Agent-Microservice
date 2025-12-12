@@ -1,0 +1,27 @@
+services:
+  jade-ai-bot:
+    # Image should be published to registry before deployment
+    # Update image name to include registry if using private registry
+    # Example: registry.example.com/jade-ai-bot:dev
+    image: jade-ai-bot:dev
+    container_name: jade-ai-bot-dev
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_PROFILES_ACTIVE=dev
+      - JAVA_OPTS=-Xmx512m -Xms256m
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - chatbot-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/actuator/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  chatbot-network:
+    driver: bridge

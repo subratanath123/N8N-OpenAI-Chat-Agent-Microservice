@@ -1,0 +1,66 @@
+server:
+  port: 8080
+  error:
+    include-message: always
+    include-binding-errors: always
+    include-stacktrace: on_param
+
+spring:
+  application:
+    name: OpenAiChatService
+  mvc:
+    static-path-pattern: /static/**
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 12MB
+      max-request-size: 20MB
+  cloud:
+    bootstrap:
+      enabled: false
+    config:
+      enabled: false
+
+# Eureka Configuration - Configure for QA environment
+eureka:
+  instance:
+    preferIpAddress: true
+  client:
+    registerWithEureka: ${EUREKA_ENABLED:false}
+    fetchRegistry: ${EUREKA_ENABLED:false}
+    serviceUrl:
+      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    net.ai.chatbot: DEBUG
+    org.springframework: INFO
+    org.springframework.cloud: INFO
+    com.amazonaws: INFO
+    io.awspring.cloud: INFO
+  file:
+    name: /var/log/jade-ai-bot/application.log
+  pattern:
+    file: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+
+# Management/Actuator endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# N8N Webhook Configuration - Update with your QA N8N URLs
+n8n:
+  webhook:
+    knowledgebase:
+      train:
+        url: ${N8N_TRAIN_WEBHOOK_URL:http://localhost:5678/webhook/cacb416b-286a-4524-9b29-9d8a81bb5864}
+      chat:
+        url: ${N8N_CHAT_WEBHOOK_URL:http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea}
+
