@@ -3,13 +3,17 @@ services:
     # Image should be published to registry before deployment
     # Update image name to include registry if using private registry
     # Example: registry.example.com/jade-ai-bot:dev
-    image: jade-ai-bot:dev
+    build:
+      context: .
     container_name: jade-ai-bot-dev
     ports:
       - "8080:8080"
     environment:
       - SPRING_PROFILES_ACTIVE=dev
       - JAVA_OPTS=-Xmx512m -Xms256m
+      - SPRING_CLOUD_CONFIG_URI=http://143.198.58.6:8887
+      - SPRING_CLOUD_CONFIG_DISCOVERY_ENABLED=false
+      - SPRING_CLOUD_BOOTSTRAP_ENABLED=false
     extra_hosts:
       - "host.docker.internal:host-gateway"
     networks:

@@ -3,8 +3,7 @@ server:
   error:
     include-message: always
     include-binding-errors: always
-    include-stacktrace: on_param
-
+    include-stacktrace: always
 spring:
   application:
     name: OpenAiChatService
@@ -19,48 +18,30 @@ spring:
     bootstrap:
       enabled: false
     config:
-      enabled: false
+      profile: dev
+      discovery:
+        enabled: false
+      enabled: true
+      uri: http://143.198.58.6:8887
+      import-check:
+        enabled: false
 
-# Eureka Configuration - Disable or configure for production
+  config:
+    import: "optional:configserver:http://143.198.58.6:8887/"
+
 eureka:
   instance:
     preferIpAddress: true
   client:
-    registerWithEureka: ${EUREKA_ENABLED:false}
-    fetchRegistry: ${EUREKA_ENABLED:false}
+    registerWithEureka: true
+    fetchRegistry: true
     serviceUrl:
-      defaultZone: ${EUREKA_SERVER_URL:http://localhost:8761/eureka/}
+      defaultZone: http://143.198.58.6:8761/eureka/
 
-# Logging Configuration
 logging:
   level:
-    root: INFO
-    net.ai.chatbot: INFO
-    org.springframework: WARN
-    org.springframework.cloud: WARN
-    com.amazonaws: INFO
-    io.awspring.cloud: INFO
-  file:
-    name: /var/log/jade-ai-bot/application.log
-  pattern:
-    file: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
-
-# Management/Actuator endpoints
-management:
-  endpoints:
-    web:
-      exposure:
-        include: health,info,metrics
-  endpoint:
-    health:
-      show-details: when-authorized
-
-# N8N Webhook Configuration - Update with your production N8N URLs
-n8n:
-  webhook:
-    knowledgebase:
-      train:
-        url: ${N8N_TRAIN_WEBHOOK_URL:http://localhost:5678/webhook/cacb416b-286a-4524-9b29-9d8a81bb5864}
-      chat:
-        url: ${N8N_CHAT_WEBHOOK_URL:http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea}
-
+    org:
+      springframework:
+        cloud: DEBUG
+    com.amazonaws: DEBUG
+    io.awspring.cloud: DEBUG

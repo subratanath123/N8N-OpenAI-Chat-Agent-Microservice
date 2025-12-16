@@ -16,18 +16,18 @@ spring:
       max-request-size: 20MB
   cloud:
     bootstrap:
-      enabled: true
+      enabled: false
     config:
       profile: dev
       discovery:
-        enabled: true
-        service-id: ConfigService
+        enabled: false
       enabled: true
+      uri: http://143.198.58.6:8887
       import-check:
         enabled: false
 
   config:
-    import: "optional:configserver:http://localhost:8887"
+    import: "optional:configserver:http://143.198.58.6:8887/"
 
 eureka:
   instance:
@@ -45,12 +45,3 @@ logging:
         cloud: DEBUG
     com.amazonaws: DEBUG
     io.awspring.cloud: DEBUG
-
-
-n8n:
-    webhook:
-      knowledgebase:
-        train:
-          url: http://localhost:5678/webhook/cacb416b-286a-4524-9b29-9d8a81bb5864
-        chat:
-          url: http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea
