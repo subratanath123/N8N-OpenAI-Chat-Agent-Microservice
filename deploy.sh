@@ -79,8 +79,7 @@ main() {
     echo "Environment: ${ENVIRONMENT}"
     echo "=========================================="
     echo ""
-    
-    gradle assemble
+
     validate_environment
     build_docker_image
     start_containers

@@ -10,10 +10,10 @@ RUN apk add --no-cache curl
 COPY build/libs/JadeAiBot.jar JadeAiBot.jar
 
 # Create a non-root user for security (Alpine uses addgroup/adduser)
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S -G appgroup appuser && \
-    chown -R appuser:appgroup /app
-USER appuser
+#RUN addgroup -g 1001 -S appgroup && \
+#    adduser -u 1001 -S -G appgroup appuser && \
+#    chown -R appuser:appgroup /app
+#USER appuser
 
 # Expose the port
 EXPOSE 8080

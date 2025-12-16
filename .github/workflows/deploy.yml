@@ -32,19 +32,42 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
 
+      - name: Cache Gradle
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Build with Gradle
-        run: ./gradlew build -x test
+      - name: Build application (bootJar)
+        run: ./gradlew clean bootJar -x test --build-cache
 
-      - name: Build JAR
-        run: ./gradlew bootJar
+      - name: Verify JAR exists
+        run: |
+          if [ ! -f "build/libs/JadeAiBot.jar" ]; then
+            echo "Error: JAR file not found!"
+            exit 1
+          fi
+          ls -lh build/libs/JadeAiBot.jar
 
       - name: Create deployment package
         run: |
           mkdir -p deploy
+
+          cp Dockerfile deploy/
+          cp docker-compose.* deploy/
+          cp .dockerignore deploy/
           cp deploy.sh deploy/
+
+          mkdir -p deploy/build/libs
+          cp build/libs/JadeAiBot.jar deploy/build/libs/
+
           tar -czf deploy.tar.gz deploy/
 
       - name: Setup SSH
@@ -54,6 +77,42 @@ jobs:
           chmod 600 ~/.ssh/id_ed25519
           ssh-keyscan -H ${{ secrets.DROPLET_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Test SSH
+      - name: Test SSH connection
         run: |
           ssh ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} "uname -a"
+
+      - name: Create deployment directory on droplet
+        run: |
+          ssh ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} << 'EOF'
+            DEPLOY_DIR="/opt/jade-ai-bot"
+            sudo mkdir -p $DEPLOY_DIR
+            sudo chown -R $USER:$USER $DEPLOY_DIR
+            mkdir -p $DEPLOY_DIR/backups
+          EOF
+
+      - name: Transfer deployment files to droplet
+        run: |
+          scp deploy.tar.gz ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }}:/tmp/
+
+      - name: Extract and deploy on droplet
+        run: |
+          ssh ${{ secrets.DROPLET_USER }}@${{ secrets.DROPLET_HOST }} << 'EOF'
+            set -e
+            DEPLOY_DIR="/opt/jade-ai-bot"
+            ENVIRONMENT="${ENVIRONMENT:-prod}"
+
+            cd $DEPLOY_DIR
+            tar -xzf /tmp/deploy.tar.gz
+
+            ls -la deploy
+          
+            cd deploy
+            ./deploy.sh prod
+          EOF
+        env:
+          ENVIRONMENT: ${{ github.event.inputs.environment || 'prod' }}
+
+      - name: Cleanup
+        run: |
+          rm -f deploy.tar.gz
+          rm -rf deploy
