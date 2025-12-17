@@ -5,7 +5,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class EmbeddedChatService {
 
-    private static final String webhookUrl = "http://143.198.58.6:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea";
+    private static final String webhookUrl = "http://172.17.0.1:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea";
     private static final String workflowId= "default-workflow";
 
     /*
