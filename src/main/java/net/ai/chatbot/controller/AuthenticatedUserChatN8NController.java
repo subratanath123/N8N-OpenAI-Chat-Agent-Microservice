@@ -9,6 +9,7 @@ import net.ai.chatbot.service.aichatbot.ChatBotService;
 import net.ai.chatbot.service.n8n.GenericN8NService;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -26,8 +27,8 @@ public class AuthenticatedUserChatN8NController {
     @Autowired
     private ChatBotService chatBotService;
 
-    //    @Value("${n8n.webhook.knowledgebase.chat.url}")
-    private String webhookUrl = "http://localhost:5678/webhook/beab6fcf-f27a-4d26-8923-5f95e8190fea";
+    @Value("${n8n.webhook.knowledgebase.chat.url}")
+    private String webhookUrl;
 
     /**
      * Get session ID from authentication context or return default
