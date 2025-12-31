@@ -155,7 +155,7 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
                     50,
                     scrappedData ->{
                         n8nWebhookService.submitTextContentToN8nKnowledgebase(
-                                scrappedData.html(),
+                                scrappedData.scrappedData(),
                                 chatBot.getEmail(),
                                 knowledgebaseCollectionName,
                                 knowledgebaseVectorIndexName,
