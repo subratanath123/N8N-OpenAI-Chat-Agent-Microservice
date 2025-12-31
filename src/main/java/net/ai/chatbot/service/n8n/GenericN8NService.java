@@ -15,10 +15,8 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
@@ -102,7 +100,13 @@ public class GenericN8NService<T, R> {
             headers.put("fallbackmessage", chatBot.getFallbackMessage());
             headers.put("greetingmessage", chatBot.getGreetingMessage());
             headers.put("restrictdatasource", String.valueOf(chatBot.getRestrictToDataSource()));
-            headers.put("instructions", chatBot.getInstructions());
+
+            String encodedInstructions =
+                    Base64.getEncoder().encodeToString(
+                            chatBot.getInstructions().getBytes(StandardCharsets.UTF_8)
+                    );
+
+            headers.put("instructions", encodedInstructions);
         }
 
         headers.put("chatbotid", chatbotId);
