@@ -70,7 +70,7 @@ public class GenericN8NService<T, R> {
 
             GenericWebClientResponse<String> responseEntity = genericWebClient.postWithResponse(
                     webhookUrl,
-                    () -> BodyInserters.fromFormData(buildFormDataAsStringMap(messageContent, extraFormFields)),
+                    () -> BodyInserters.fromFormData(buildFormDataAsStringMap(chatBot, messageContent, extraFormFields)),
                     String.class,
                     headers
             );
@@ -100,13 +100,6 @@ public class GenericN8NService<T, R> {
             headers.put("fallbackmessage", chatBot.getFallbackMessage());
             headers.put("greetingmessage", chatBot.getGreetingMessage());
             headers.put("restrictdatasource", String.valueOf(chatBot.getRestrictToDataSource()));
-
-            String encodedInstructions =
-                    Base64.getEncoder().encodeToString(
-                            chatBot.getInstructions().getBytes(StandardCharsets.UTF_8)
-                    );
-
-            headers.put("instructions", encodedInstructions);
         }
 
         headers.put("chatbotid", chatbotId);
@@ -130,10 +123,11 @@ public class GenericN8NService<T, R> {
         return headers;
     }
 
-    private MultiValueMap<String, String> buildFormDataAsStringMap(String messageContent,
+    private MultiValueMap<String, String> buildFormDataAsStringMap(ChatBot chatBot, String messageContent,
                                                                    Map<String, Object> extraFormFields) {
         MultiValueMap<String, String> formData = new LinkedMultiValueMap<>();
         formData.add("message", messageContent);
+        formData.add("instructions", chatBot.getInstructions());
 
         if (extraFormFields != null && !extraFormFields.isEmpty()) {
             extraFormFields.forEach((key, value) -> {
