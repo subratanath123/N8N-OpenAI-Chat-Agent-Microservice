@@ -8,6 +8,7 @@ import net.ai.chatbot.entity.KnowledgeBase;
 import net.ai.chatbot.enums.KnowledgeBaseType;
 import net.ai.chatbot.service.mongodb.MongodbVectorService;
 import net.ai.chatbot.service.n8n.N8nWebhookService;
+import net.ai.chatbot.service.training.HtmlSanitizer;
 import net.ai.chatbot.service.training.WebsiteCrawler;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -20,6 +21,8 @@ import java.util.Date;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
+
+import static net.ai.chatbot.service.training.HtmlSanitizer.*;
 
 @Slf4j
 public class KnowledgebaseProcessor implements StreamListener<String, ObjectRecord<String, String>> {
@@ -155,7 +158,7 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
                     50,
                     scrappedData ->{
                         n8nWebhookService.submitTextContentToN8nKnowledgebase(
-                                scrappedData.scrappedData(),
+                                mapToSemanticText(extractStructuredContent(scrappedData.html(), scrappedData.url())),
                                 chatBot.getEmail(),
                                 knowledgebaseCollectionName,
                                 knowledgebaseVectorIndexName,

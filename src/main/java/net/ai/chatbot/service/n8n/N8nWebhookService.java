@@ -51,13 +51,13 @@ public class N8nWebhookService {
         }
     }
 
-    public void submitTextContentToN8nKnowledgebase(String textContent, String email,
+    public void submitTextContentToN8nKnowledgebase(String semanticText,  String email,
                                                     String collectionName, String vectorIndexName,
                                                     String dataType, String webhookUrl) {
         try {
             log.info("Sending attachment to n8n webhook: {}", webhookUrl);
 
-            Map<String, Object> requestBody = Map.of("body", textContent);
+            Map<String, Object> requestBody = Map.of("body", semanticText);
 
             Map<String, String> headers = new HashMap<>();
             headers.put("dataType", dataType);
