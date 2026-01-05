@@ -28,18 +28,6 @@ public final class HtmlSanitizer {
                         "nav, footer, header, aside, ads, dialog"
         ).remove();
 
-        // --------------------------------------------------
-        // 2. REMOVE COMMENTS SAFELY
-        // --------------------------------------------------
-        NodeTraversor.traverse(new NodeVisitor() {
-            @Override
-            public void head(Node node, int depth) {
-                if (node.nodeName().equals("#comment")) {
-                    node.remove();
-                }
-            }
-            @Override public void tail(Node node, int depth) {}
-        }, doc);
 
         // --------------------------------------------------
         // 3. FIND MAIN CONTENT ROOT
