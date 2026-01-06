@@ -8,8 +8,7 @@ import net.ai.chatbot.entity.KnowledgeBase;
 import net.ai.chatbot.enums.KnowledgeBaseType;
 import net.ai.chatbot.service.mongodb.MongodbVectorService;
 import net.ai.chatbot.service.n8n.N8nWebhookService;
-import net.ai.chatbot.service.training.HtmlSanitizer;
-import net.ai.chatbot.service.training.WebsiteCrawler;
+import net.ai.chatbot.service.training.PlaywrightWebsiteCrawler;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -152,7 +151,8 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
                               String knowledgebaseCollectionName,
                               String knowledgebaseVectorIndexName) {
         try {
-            WebsiteCrawler.crawl(websiteUrl,
+            log.info("Starting Playwright crawl for website: {}", websiteUrl);
+            PlaywrightWebsiteCrawler.crawl(websiteUrl,
                     chatBot.getEmail(),
                     5,
                     50,
@@ -178,8 +178,9 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
                     }
 
             );
+            log.info("Successfully completed Playwright crawl for website: {}", websiteUrl);
         } catch (Exception e) {
-            log.info("Message is failed to process for website crawl event {}", record.getId());
+            log.error("Message is failed to process for website crawl event {}: {}", record.getId(), e.getMessage(), e);
         }
     }
 

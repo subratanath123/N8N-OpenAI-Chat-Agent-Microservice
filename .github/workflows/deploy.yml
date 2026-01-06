@@ -69,6 +69,7 @@ jobs:
           cp build/libs/JadeAiBot.jar deploy/build/libs/
 
           tar -czf deploy.tar.gz deploy/
+          npx playwright install chromium
 
       - name: Setup SSH
         run: |
