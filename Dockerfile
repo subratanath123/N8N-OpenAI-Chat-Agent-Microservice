@@ -22,7 +22,8 @@ RUN apt-get update && apt-get install -y \
     xdg-utils \
     && rm -rf /var/lib/apt/lists/*
 
-# No need to install anything else - Playwright Java will handle browser installation at runtime
+# No need to install Node.js or npm - Playwright Java bundles everything it needs
+# Playwright Java will automatically download and manage browsers at runtime
 
 # Copy pre-built JAR from host
 # The JAR should be built on the host using: ./gradlew bootJar
