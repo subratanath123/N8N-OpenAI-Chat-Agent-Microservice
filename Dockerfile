@@ -1,26 +1,28 @@
-FROM eclipse-temurin:17-jdk-alpine
+FROM eclipse-temurin:17-jdk-jammy
 WORKDIR /app
 
-# Install curl for health checks, Node.js for Playwright, and Chromium dependencies
-RUN apk add --no-cache \
+# Install dependencies for Playwright
+RUN apt-get update && apt-get install -y \
     curl \
-    nodejs \
-    npm \
-    chromium \
-    nss \
-    freetype \
-    harfbuzz \
+    wget \
     ca-certificates \
-    ttf-freefont
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdbus-1-3 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnspr4 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    xdg-utils \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Playwright and Chromium
-RUN npm install -g playwright && \
-    npx playwright install chromium && \
-    npx playwright install-deps chromium || true
-
-# Set Playwright to use system-installed Chromium on Alpine
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
+# No need to install anything else - Playwright Java will handle browser installation at runtime
 
 # Copy pre-built JAR from host
 # The JAR should be built on the host using: ./gradlew bootJar
