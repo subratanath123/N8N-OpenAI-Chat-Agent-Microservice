@@ -18,10 +18,6 @@ RUN npm install -g playwright && \
     npx playwright install chromium && \
     npx playwright install-deps chromium || true
 
-# Set Playwright to use system-installed Chromium on Alpine
-ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 \
-    PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH=/usr/bin/chromium-browser
-
 # Copy pre-built JAR from host
 # The JAR should be built on the host using: ./gradlew bootJar
 # Make sure to build the JAR before building the Docker image
