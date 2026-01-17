@@ -156,52 +156,64 @@ public class PlaywrightWebsiteCrawler {
      * Extract all valid links from a page
      */
     @SuppressWarnings("unchecked")
-    private static Set<String> extractLinks(Page page, String baseUrl) {
+    public static Set<String> extractLinks(Page page, String currentPageUrl) {
         Set<String> links = new HashSet<>();
-        
-        try {
-            // Get all anchor tags with href attributes using Playwright's evaluate
-            Object result = page.evaluate("""
-                () => {
-                    const links = Array.from(document.querySelectorAll('a[href]'));
-                    return links.map(link => {
-                        try {
-                            return new URL(link.href, window.location.href).href;
-                        } catch (e) {
-                            return null;
-                        }
-                    }).filter(href => href !== null);
-                }
-            """);
 
-            // Handle the result - it should be a List<String> from Playwright
-            if (result instanceof java.util.List) {
-                java.util.List<Object> hrefList = (java.util.List<Object>) result;
-                for (Object hrefObj : hrefList) {
-                    if (hrefObj == null) continue;
-                    
-                    String href = hrefObj.toString().trim();
-                    if (href.isEmpty()) continue;
-                    
-                    try {
-                        URI uri = new URI(href);
-                        String normalizedUrl = uri.normalize().toString();
-                        
-                        // Only include links from the same domain
-                        if (normalizedUrl.startsWith(baseUrl) && !EXCLUSIONS.matcher(normalizedUrl.toLowerCase()).matches()) {
-                            // Remove fragments
-                            normalizedUrl = normalizedUrl.split("#")[0];
-                            links.add(normalizedUrl);
-                        }
-                    } catch (URISyntaxException e) {
-                        // Skip invalid URLs
+        log.info("Trying to extract link for: {}", currentPageUrl);
+
+        try {
+            Object result = page.evaluate("""
+            () => {
+                return Array.from(document.querySelectorAll('a[href]'))
+                    .map(a => a.getAttribute('href'))
+                    .filter(h => h && h.trim().length > 0);
+            }
+        """);
+
+            if (!(result instanceof java.util.List<?> hrefList)) {
+                log.info("SKipping extract link");
+                return links;
+            }
+
+            URI baseUri = new URI(currentPageUrl);
+
+            for (Object hrefObj : hrefList) {
+                if (hrefObj == null) continue;
+
+                String href = hrefObj.toString().trim();
+
+                // ✅ FIX 1: skip fragment-only
+                if (href.startsWith("#")) continue;
+
+                try {
+                    URI resolved = baseUri.resolve(href).normalize();
+
+                    String normalizedUrl = resolved.toString();
+
+                    // Remove fragment safely
+                    int hashIndex = normalizedUrl.indexOf('#');
+                    if (hashIndex != -1) {
+                        normalizedUrl = normalizedUrl.substring(0, hashIndex);
                     }
+
+                    log.info("Trying to extract link from normalizedUrl: {}", normalizedUrl);
+
+                    // Same-host constraint
+                    if (resolved.getHost() != null &&
+                            resolved.getHost().equalsIgnoreCase(baseUri.getHost()) &&
+                            !EXCLUSIONS.matcher(normalizedUrl.toLowerCase()).matches()) {
+
+                        links.add(normalizedUrl);
+                    }
+
+                } catch (IllegalArgumentException ignored) {
+                    log.warn("Error extracting links", ignored);
                 }
             }
         } catch (Exception e) {
-            log.warn("Error extracting links from page: {}", e.getMessage());
+            log.warn("Error extracting links: {}", e.getMessage());
         }
-        
+
         return links;
     }
 
