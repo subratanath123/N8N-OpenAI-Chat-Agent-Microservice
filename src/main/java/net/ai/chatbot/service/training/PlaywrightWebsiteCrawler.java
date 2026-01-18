@@ -43,15 +43,30 @@ public class PlaywrightWebsiteCrawler {
         
         try {
             playwright = Playwright.create();
+
             BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
                     .setHeadless(true)
-                    .setArgs(java.util.Arrays.asList("--no-sandbox", "--disable-setuid-sandbox"));
+                    .setArgs(java.util.Arrays.asList(
+                            "--no-sandbox",
+                            "--disable-setuid-sandbox",
+                            "--disable-blink-features=AutomationControlled",
+                            "--disable-dev-shm-usage"
+                    ));
+
             browser = playwright.chromium().launch(launchOptions);
 
             // Create context with options using the correct API
             BrowserContext context = browser.newContext(new Browser.NewContextOptions()
                     .setViewportSize(1920, 1080)
-                    .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"));
+                    .setUserAgent(
+                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) " +
+                                    "AppleWebKit/537.36 (KHTML, like Gecko) " +
+                                    "Chrome/122.0.0.0 Safari/537.36"
+                    )
+                    .setLocale("en-US")
+                    .setTimezoneId("Asia/Dhaka")
+                    .setJavaScriptEnabled(true)
+            );
 
             context.setDefaultNavigationTimeout(DEFAULT_NAVIGATION_TIMEOUT);
             context.setDefaultTimeout(DEFAULT_WAIT_TIMEOUT);
@@ -100,7 +115,7 @@ public class PlaywrightWebsiteCrawler {
                             page.waitForLoadState(LoadState.NETWORKIDLE);
                             
                             // Additional wait for React content to fully render
-                            Thread.sleep(2000);
+                            page.waitForTimeout(1500);
 
                             // Extract page content
                             String title = page.title();
@@ -163,12 +178,9 @@ public class PlaywrightWebsiteCrawler {
 
         try {
             Object result = page.evaluate("""
-            () => {
-                return Array.from(document.querySelectorAll('a[href]'))
-                    .map(a => a.getAttribute('href'))
-                    .filter(h => h && h.trim().length > 0);
-            }
-        """);
+                        () => Array.from(document.querySelectorAll('a[href]'))
+                                   .map(a => a.href)
+                    """);
 
             if (!(result instanceof java.util.List<?> hrefList)) {
                 log.info("SKipping extract link");
