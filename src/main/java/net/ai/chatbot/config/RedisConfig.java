@@ -1,5 +1,7 @@
 package net.ai.chatbot.config;
 
+import io.lettuce.core.ClientOptions;
+import io.lettuce.core.SocketOptions;
 import net.ai.chatbot.service.mongodb.MongodbVectorService;
 import net.ai.chatbot.service.n8n.N8nWebhookService;
 import net.ai.chatbot.service.redis.KnowledgebaseProcessor;
@@ -10,6 +12,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
+import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.connection.stream.*;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -67,11 +70,30 @@ public class RedisConfig {
 
     @Bean
     public LettuceConnectionFactory redisConnectionFactory() {
-        RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redisHost, redisPort);
+
+        RedisStandaloneConfiguration config =
+                new RedisStandaloneConfiguration(redisHost, redisPort);
         config.setUsername(redisUsername);
         config.setPassword(redisPassword);
 
-        return new LettuceConnectionFactory(config);
+        SocketOptions socketOptions = SocketOptions.builder()
+                .keepAlive(true)                 // VERY IMPORTANT
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
+
+        ClientOptions clientOptions = ClientOptions.builder()
+                .autoReconnect(true)            // VERY IMPORTANT
+                .socketOptions(socketOptions)
+                .pingBeforeActivateConnection(true) // VERY IMPORTANT
+                .build();
+
+        LettuceClientConfiguration clientConfig =
+                LettuceClientConfiguration.builder()
+                        .commandTimeout(Duration.ofSeconds(30))
+                        .clientOptions(clientOptions)
+                        .build();
+
+        return new LettuceConnectionFactory(config, clientConfig);
     }
 
     @Bean
