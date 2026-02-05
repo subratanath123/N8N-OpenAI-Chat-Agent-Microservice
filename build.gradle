@@ -66,6 +66,9 @@ dependencies {
     implementation 'com.microsoft.playwright:playwright:1.40.0'
     implementation 'org.springframework.boot:spring-boot-starter-data-redis'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+
+    // Spring AI MCP Server for calendar tools
+    implementation("org.springframework.ai:spring-ai-starter-mcp-server:1.1.2")
 }
 
 dependencyManagement {

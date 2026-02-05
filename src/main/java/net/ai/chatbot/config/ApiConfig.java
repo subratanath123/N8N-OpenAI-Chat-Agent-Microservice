@@ -5,7 +5,6 @@ import net.ai.chatbot.service.openai.DomainService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.oauth2.server.resource.authentication.JwtIssuerAuthenticationManagerResolver;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -19,12 +18,12 @@ public class ApiConfig {
     public SecurityFilterChain filterChain(HttpSecurity http, DomainService domainService) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
+                .cors(cors -> cors.configurationSource(corsConfigurationSource(domainService)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/v1/api/n8n/anonymous/**", "/v1/api/public/**")
+                        .requestMatchers("/v1/api/n8n/anonymous/**", "/v1/api/public/**", "/mcp/**")
                         .permitAll()
                         .anyRequest().authenticated()
                 )
-                .cors(cors -> cors.configurationSource(corsConfigurationSource(domainService)))
                 .oauth2ResourceServer(oauth2 -> oauth2
                         .jwt(jwt -> jwt
                                 .jwkSetUri("https://ruling-ferret-57.clerk.accounts.dev/.well-known/jwks.json")
@@ -42,7 +41,7 @@ public class ApiConfig {
                 CorsConfiguration config = new CorsConfiguration();
                 String origin = request.getHeader("Origin");
 
-                if (origin != null && domainService.isAllowedOrigin(origin)) {
+                if (origin != null && DomainService.isAllowedOrigin(origin)) {
                     config.addAllowedOrigin(origin);
                     config.setAllowCredentials(true);
                     config.addAllowedHeader("*");

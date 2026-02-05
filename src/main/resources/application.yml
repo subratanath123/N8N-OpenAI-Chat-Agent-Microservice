@@ -1,0 +1,11 @@
+spring:
+  ai:
+    mcp:
+      server:
+        enabled: true
+        transport: http
+        base-path: /mcp
+        # MCP server will automatically discover @McpTool annotated methods
+        annotation-scan:
+          enabled: true
+
