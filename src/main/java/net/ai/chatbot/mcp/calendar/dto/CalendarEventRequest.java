@@ -37,8 +37,5 @@ public class CalendarEventRequest {
 
     @JsonProperty("attendees")
     private List<String> attendees;
-
-    @JsonProperty("conferenceLink")
-    private String conferenceLink;
 }
 
