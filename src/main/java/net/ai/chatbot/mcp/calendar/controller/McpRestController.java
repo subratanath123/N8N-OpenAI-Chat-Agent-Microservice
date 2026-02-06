@@ -87,53 +87,73 @@ public class McpRestController {
     private Mono<ResponseEntity<Map<String, Object>>> handleToolsList(Object id) {
         log.info("MCP JSON-RPC: Handling tools/list");
         
-        Map<String, Object> result = Map.of(
-            "tools", List.of(
-                Map.of(
-                    "name", "create_calendar_event",
-                    "description", "Create a new event in Google Calendar. Requires a Google Calendar OAuth2 access token.",
-                    "inputSchema", Map.of(
-                        "type", "object",
-                        "properties", Map.of(
-                            "accessToken", Map.of(
-                                "type", "string",
-                                "description", "Google Calendar OAuth2 access token"
-                            ),
-                            "summary", Map.of(
-                                "type", "string",
-                                "description", "Event title/summary"
-                            ),
-                            "description", Map.of(
-                                "type", "string",
-                                "description", "Event description"
-                            ),
-                            "startDateTime", Map.of(
-                                "type", "string",
-                                "description", "Event start date/time in ISO 8601 format (e.g., 2024-01-15T10:00:00)"
-                            ),
-                            "endDateTime", Map.of(
-                                "type", "string",
-                                "description", "Event end date/time in ISO 8601 format (e.g., 2024-01-15T11:00:00)"
-                            ),
-                            "timeZone", Map.of(
-                                "type", "string",
-                                "description", "Time zone (e.g., UTC, America/New_York). Defaults to UTC if not provided"
-                            ),
-                            "location", Map.of(
-                                "type", "string",
-                                "description", "Event location"
-                            ),
-                            "attendees", Map.of(
-                                "type", "array",
-                                "items", Map.of("type", "string"),
-                                "description", "List of attendee email addresses"
-                            )
-                        ),
-                        "required", List.of("accessToken", "summary", "startDateTime", "endDateTime")
-                    )
-                )
-            )
-        );
+        // Build tool schema according to MCP specification
+        // Each property needs: type, description, and inputType for n8n compatibility
+        Map<String, Object> accessTokenProp = new java.util.HashMap<>();
+        accessTokenProp.put("type", "string");
+        accessTokenProp.put("description", "Google Calendar OAuth2 access token");
+        accessTokenProp.put("inputType", "string");
+        
+        Map<String, Object> summaryProp = new java.util.HashMap<>();
+        summaryProp.put("type", "string");
+        summaryProp.put("description", "Event title/summary");
+        summaryProp.put("inputType", "string");
+        
+        Map<String, Object> descriptionProp = new java.util.HashMap<>();
+        descriptionProp.put("type", "string");
+        descriptionProp.put("description", "Event description");
+        descriptionProp.put("inputType", "string");
+        
+        Map<String, Object> startDateTimeProp = new java.util.HashMap<>();
+        startDateTimeProp.put("type", "string");
+        startDateTimeProp.put("description", "Event start date/time in ISO 8601 format (e.g., 2024-01-15T10:00:00)");
+        startDateTimeProp.put("inputType", "string");
+        
+        Map<String, Object> endDateTimeProp = new java.util.HashMap<>();
+        endDateTimeProp.put("type", "string");
+        endDateTimeProp.put("description", "Event end date/time in ISO 8601 format (e.g., 2024-01-15T11:00:00)");
+        endDateTimeProp.put("inputType", "string");
+        
+        Map<String, Object> timeZoneProp = new java.util.HashMap<>();
+        timeZoneProp.put("type", "string");
+        timeZoneProp.put("description", "Time zone (e.g., UTC, America/New_York). Defaults to UTC if not provided");
+        timeZoneProp.put("inputType", "string");
+        
+        Map<String, Object> locationProp = new java.util.HashMap<>();
+        locationProp.put("type", "string");
+        locationProp.put("description", "Event location");
+        locationProp.put("inputType", "string");
+        
+        Map<String, Object> attendeesItemsProp = new java.util.HashMap<>();
+        attendeesItemsProp.put("type", "string");
+        
+        Map<String, Object> attendeesProp = new java.util.HashMap<>();
+        attendeesProp.put("type", "array");
+        attendeesProp.put("items", attendeesItemsProp);
+        attendeesProp.put("description", "List of attendee email addresses");
+        attendeesProp.put("inputType", "array");
+        
+        Map<String, Object> properties = new java.util.HashMap<>();
+        properties.put("accessToken", accessTokenProp);
+        properties.put("summary", summaryProp);
+        properties.put("description", descriptionProp);
+        properties.put("startDateTime", startDateTimeProp);
+        properties.put("endDateTime", endDateTimeProp);
+        properties.put("timeZone", timeZoneProp);
+        properties.put("location", locationProp);
+        properties.put("attendees", attendeesProp);
+        
+        Map<String, Object> inputSchema = new java.util.HashMap<>();
+        inputSchema.put("type", "object");
+        inputSchema.put("properties", properties);
+        inputSchema.put("required", List.of("accessToken", "summary", "startDateTime", "endDateTime"));
+        
+        Map<String, Object> tool = new java.util.HashMap<>();
+        tool.put("name", "create_calendar_event");
+        tool.put("description", "Create a new event in Google Calendar. Requires a Google Calendar OAuth2 access token.");
+        tool.put("inputSchema", inputSchema);
+        
+        Map<String, Object> result = Map.of("tools", List.of(tool));
         
         return Mono.just(ResponseEntity.ok(createJsonRpcSuccess(id, result)));
     }
