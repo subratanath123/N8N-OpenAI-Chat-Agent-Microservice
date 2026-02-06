@@ -83,7 +83,10 @@ public class CalendarEventTool {
             String location,
 
             @McpToolParam(description = "List of attendee email addresses")
-            List<String> attendees) {
+            List<String> attendees,
+
+            @McpToolParam(description = "Conference/call link (e.g., Zoom, Google Meet, Teams)")
+            String conferenceLink) {
 
         log.info("MCP Tool invoked: create_calendar_event for event '{}'", summary);
 
@@ -95,6 +98,7 @@ public class CalendarEventTool {
                 .endDateTime(endDateTime)
                 .timeZone(timeZone != null ? timeZone : "UTC")
                 .attendees(attendees)
+                .conferenceLink(conferenceLink)
                 .build();
 
         return googleCalendarService.createEvent(accessToken, request)

@@ -41,5 +41,8 @@ public class CalendarEventResponse {
 
     @JsonProperty("message")
     private String message;
+
+    @JsonProperty("conferenceLink")
+    private String conferenceLink;
 }
 
