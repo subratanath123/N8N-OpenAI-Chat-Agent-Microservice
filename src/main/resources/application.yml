@@ -9,3 +9,13 @@ spring:
         annotation-scan:
           enabled: true
 
+# Google OAuth Configuration
+google:
+  oauth:
+    client-id: ${GOOGLE_CLIENT_ID:your_client_id.apps.googleusercontent.com}
+    client-secret: ${GOOGLE_CLIENT_SECRET:your_client_secret}
+
+# Encryption Configuration (for storing OAuth tokens securely)
+encryption:
+  key: ${ENCRYPTION_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
+
