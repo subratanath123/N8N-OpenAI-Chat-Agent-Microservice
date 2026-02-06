@@ -2,11 +2,16 @@ package net.ai.chatbot.mcp.calendar.controller;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.ai.chatbot.dao.GoogleCalendarTokenDao;
+import net.ai.chatbot.entity.GoogleCalendarToken;
 import net.ai.chatbot.mcp.calendar.tools.CalendarEventTool;
+import net.ai.chatbot.service.googlecalendar.GoogleOAuthService;
+import net.ai.chatbot.utils.EncryptionUtils;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -26,6 +31,9 @@ import java.util.Map;
 public class McpRestController {
 
     private final CalendarEventTool calendarEventTool;
+    private final GoogleCalendarTokenDao tokenDao;
+    private final EncryptionUtils encryptionUtils;
+    private final GoogleOAuthService oauthService;
 
     /**
      * JSON-RPC 2.0 endpoint for MCP protocol
@@ -89,10 +97,10 @@ public class McpRestController {
         
         // Build tool schema according to MCP specification
         // Each property needs: type, description, and inputType for n8n compatibility
-        Map<String, Object> accessTokenProp = new java.util.HashMap<>();
-        accessTokenProp.put("type", "string");
-        accessTokenProp.put("description", "Google Calendar OAuth2 access token");
-        accessTokenProp.put("inputType", "string");
+        Map<String, Object> chatbotIdProp = new java.util.HashMap<>();
+        chatbotIdProp.put("type", "string");
+        chatbotIdProp.put("description", "Chatbot ID to fetch the stored Google Calendar token");
+        chatbotIdProp.put("inputType", "string");
         
         Map<String, Object> summaryProp = new java.util.HashMap<>();
         summaryProp.put("type", "string");
@@ -134,7 +142,7 @@ public class McpRestController {
         attendeesProp.put("inputType", "array");
         
         Map<String, Object> properties = new java.util.HashMap<>();
-        properties.put("accessToken", accessTokenProp);
+        properties.put("chatbotId", chatbotIdProp);
         properties.put("summary", summaryProp);
         properties.put("description", descriptionProp);
         properties.put("startDateTime", startDateTimeProp);
@@ -146,11 +154,11 @@ public class McpRestController {
         Map<String, Object> inputSchema = new java.util.HashMap<>();
         inputSchema.put("type", "object");
         inputSchema.put("properties", properties);
-        inputSchema.put("required", List.of("accessToken", "summary", "startDateTime", "endDateTime"));
+        inputSchema.put("required", List.of("chatbotId", "summary", "startDateTime", "endDateTime"));
         
         Map<String, Object> tool = new java.util.HashMap<>();
         tool.put("name", "create_calendar_event");
-        tool.put("description", "Create a new event in Google Calendar. Requires a Google Calendar OAuth2 access token.");
+        tool.put("description", "Create a new event in Google Calendar. Uses stored OAuth token for the chatbot.");
         tool.put("inputSchema", inputSchema);
         
         Map<String, Object> result = Map.of("tools", List.of(tool));
@@ -176,7 +184,7 @@ public class McpRestController {
         }
         
         // Extract and validate arguments
-        String accessToken = (String) arguments.get("accessToken");
+        String chatbotId = (String) arguments.get("chatbotId");
         String summary = (String) arguments.get("summary");
         String description = (String) arguments.get("description");
         String startDateTime = (String) arguments.get("startDateTime");
@@ -187,9 +195,9 @@ public class McpRestController {
         List<String> attendees = (List<String>) arguments.get("attendees");
         
         // Validate required arguments
-        if (accessToken == null || accessToken.isBlank()) {
+        if (chatbotId == null || chatbotId.isBlank()) {
             return Mono.just(ResponseEntity.ok(
-                createJsonRpcError(id, -32602, "Missing required argument: accessToken", null)
+                createJsonRpcError(id, -32602, "Missing required argument: chatbotId", null)
             ));
         }
         if (summary == null || summary.isBlank()) {
@@ -208,10 +216,14 @@ public class McpRestController {
             ));
         }
         
-        // Call the MCP tool
-        return calendarEventTool.createCalendarEvent(
-                accessToken, summary, description, startDateTime, endDateTime, 
-                timeZone, location, attendees
+        // Fetch and decrypt access token from database
+        return getValidAccessToken(chatbotId)
+            .flatMap(accessToken -> 
+                // Call the MCP tool with fetched access token
+                calendarEventTool.createCalendarEvent(
+                    accessToken, summary, description, startDateTime, endDateTime, 
+                    timeZone, location, attendees
+                )
             )
             .map(response -> ResponseEntity.ok(createJsonRpcSuccess(id, Map.of(
                 "content", List.of(
@@ -275,6 +287,71 @@ public class McpRestController {
             "error", error,
             "id", id != null ? id : 0
         );
+    }
+
+    /**
+     * Get valid access token for a chatbot, automatically refreshing if expired
+     * 
+     * @param chatbotId The chatbot ID
+     * @return Mono with valid access token
+     */
+    private Mono<String> getValidAccessToken(String chatbotId) {
+        log.info("Fetching access token for chatbot: {}", chatbotId);
+        
+        return Mono.fromCallable(() -> {
+            // Get token from database
+            GoogleCalendarToken token = tokenDao.findByChatbotId(chatbotId)
+                .orElseThrow(() -> new RuntimeException(
+                    "Google Calendar not connected for chatbot: " + chatbotId + 
+                    ". Please connect Google Calendar first."));
+            
+            // Check if token is expired
+            if (token.getExpiresAt().before(new Date())) {
+                log.info("Access token expired for chatbot {}, will refresh", chatbotId);
+                return token; // Return for refresh
+            } else {
+                // Token is still valid, decrypt and return
+                String decryptedToken = encryptionUtils.decrypt(token.getAccessToken());
+                log.info("Using valid cached token for chatbot: {}", chatbotId);
+                return decryptedToken;
+            }
+        })
+        .flatMap(result -> {
+            if (result instanceof GoogleCalendarToken) {
+                // Token was expired, refresh it
+                GoogleCalendarToken token = (GoogleCalendarToken) result;
+                String decryptedRefreshToken = encryptionUtils.decrypt(token.getRefreshToken());
+                
+                return oauthService.refreshAccessToken(decryptedRefreshToken)
+                    .map(newTokens -> {
+                        // Update token in database
+                        Date newExpiresAt = new Date(System.currentTimeMillis() + newTokens.expiresIn * 1000L);
+                        String encryptedAccessToken = encryptionUtils.encrypt(newTokens.accessToken);
+                        
+                        token.setAccessToken(encryptedAccessToken);
+                        token.setExpiresAt(newExpiresAt);
+                        token.setTokenType(newTokens.tokenType);
+                        token.setUpdatedAt(new Date());
+                        tokenDao.save(token);
+                        
+                        log.info("Successfully refreshed token for chatbot: {}", chatbotId);
+                        return newTokens.accessToken;
+                    })
+                    .onErrorMap(e -> new RuntimeException(
+                        "Failed to refresh Google Calendar token for chatbot: " + chatbotId + 
+                        ". Error: " + e.getMessage() + 
+                        ". Please reconnect Google Calendar.", e));
+            } else {
+                // Token was valid, return it
+                return Mono.just((String) result);
+            }
+        })
+        .onErrorMap(e -> {
+            if (e instanceof RuntimeException) {
+                return e;
+            }
+            return new RuntimeException("Error fetching access token: " + e.getMessage(), e);
+        });
     }
 
     /**
