@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import net.ai.chatbot.service.openai.DomainService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
@@ -14,13 +15,35 @@ import java.util.List;
 @Configuration
 public class ApiConfig {
 
+    /**
+     * Security filter chain for MCP endpoints (no authentication required)
+     * This chain has higher priority (Order 1) and handles /mcp/** endpoints
+     */
     @Bean
+    @Order(1)
+    public SecurityFilterChain mcpSecurityFilterChain(HttpSecurity http) throws Exception {
+        http
+                .securityMatcher("/mcp", "/mcp/**")
+                .csrf(csrf -> csrf.disable())
+                .authorizeHttpRequests(auth -> auth
+                        .anyRequest().permitAll()
+                );
+
+        return http.build();
+    }
+
+    /**
+     * Main security filter chain for all other endpoints (OAuth2 authentication required)
+     * This chain has lower priority (Order 2) and handles all other endpoints
+     */
+    @Bean
+    @Order(2)
     public SecurityFilterChain filterChain(HttpSecurity http, DomainService domainService) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(domainService)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/v1/api/n8n/anonymous/**", "/v1/api/public/**", "/mcp/**")
+                        .requestMatchers("/v1/api/n8n/anonymous/**", "/v1/api/public/**")
                         .permitAll()
                         .anyRequest().authenticated()
                 )

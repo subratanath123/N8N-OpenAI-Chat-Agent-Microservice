@@ -4,6 +4,8 @@
 
 This guide shows you **exactly** what to enter in n8n's **MCP Client Tool** node to connect to your Calendar MCP Server.
 
+**Important:** n8n's MCP Client Tool uses the **JSON-RPC 2.0** protocol standard. Your server now supports both REST-style endpoints and JSON-RPC 2.0 format at `POST /mcp`.
+
 ## 🔧 MCP Client Tool Node Configuration
 
 ### Step 1: Add MCP Client Tool Node
