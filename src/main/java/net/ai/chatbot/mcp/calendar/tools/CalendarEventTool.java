@@ -60,7 +60,7 @@ public class CalendarEventTool {
      * description = "Create a new event in Google Calendar. Requires a Google Calendar OAuth2 access token."
      * )
      */
-    @McpTool(name = "create_calendar_event", description = "Create a new event in Google Calendar...")
+    @McpTool(name = "create_calendar_event", description = "Create a new event in Google Calendar with auto-generated Google Meet link")
     public Mono<CalendarEventResponse> createCalendarEvent(
             @McpToolParam(description = "Google Calendar OAuth2 access token", required = true)
             String accessToken,
@@ -83,12 +83,9 @@ public class CalendarEventTool {
             String location,
 
             @McpToolParam(description = "List of attendee email addresses")
-            List<String> attendees,
+            List<String> attendees) {
 
-            @McpToolParam(description = "Conference/call link (e.g., Zoom, Google Meet, Teams)")
-            String conferenceLink) {
-
-        log.info("MCP Tool invoked: create_calendar_event for event '{}'", summary);
+        log.info("MCP Tool invoked: create_calendar_event for event '{}' (Google Meet link will be auto-generated)", summary);
 
         CalendarEventRequest request = CalendarEventRequest.builder()
                 .summary(summary)
@@ -98,11 +95,11 @@ public class CalendarEventTool {
                 .endDateTime(endDateTime)
                 .timeZone(timeZone != null ? timeZone : "UTC")
                 .attendees(attendees)
-                .conferenceLink(conferenceLink)
                 .build();
 
         return googleCalendarService.createEvent(accessToken, request)
-                .doOnSuccess(response -> log.info("Calendar event created via MCP: {}", response.getId()))
+                .doOnSuccess(response -> log.info("Calendar event created via MCP with Meet link: {} - {}", 
+                    response.getId(), response.getConferenceLink()))
                 .doOnError(error -> log.error("Failed to create calendar event via MCP: {}", error.getMessage()));
     }
 }

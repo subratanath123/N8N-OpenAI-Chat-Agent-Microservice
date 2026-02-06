@@ -144,11 +144,6 @@ public class McpRestController {
         attendeesProp.put("description", "List of attendee email addresses");
         attendeesProp.put("inputType", "array");
         
-        Map<String, Object> conferenceLinkProp = new java.util.HashMap<>();
-        conferenceLinkProp.put("type", "string");
-        conferenceLinkProp.put("description", "Conference/call link (e.g., Zoom, Google Meet, Teams link)");
-        conferenceLinkProp.put("inputType", "string");
-        
         Map<String, Object> properties = new java.util.HashMap<>();
         properties.put("chatbotId", chatbotIdProp);
         properties.put("summary", summaryProp);
@@ -158,7 +153,6 @@ public class McpRestController {
         properties.put("timeZone", timeZoneProp);
         properties.put("location", locationProp);
         properties.put("attendees", attendeesProp);
-        properties.put("conferenceLink", conferenceLinkProp);
         
         Map<String, Object> inputSchema = new java.util.HashMap<>();
         inputSchema.put("type", "object");
@@ -167,7 +161,7 @@ public class McpRestController {
         
         Map<String, Object> tool = new java.util.HashMap<>();
         tool.put("name", "create_calendar_event");
-        tool.put("description", "Create a new event in Google Calendar. Uses stored OAuth token for the chatbot.");
+        tool.put("description", "Create a new event in Google Calendar with auto-generated Google Meet link. Uses stored OAuth token for the chatbot.");
         tool.put("inputSchema", inputSchema);
         
         Map<String, Object> result = Map.of("tools", List.of(tool));
@@ -202,7 +196,6 @@ public class McpRestController {
         String location = (String) arguments.get("location");
         @SuppressWarnings("unchecked")
         List<String> attendees = (List<String>) arguments.get("attendees");
-        String conferenceLink = (String) arguments.get("conferenceLink");
         
         // Validate required arguments
         if (chatbotId == null || chatbotId.isBlank()) {
@@ -230,9 +223,10 @@ public class McpRestController {
         return getValidAccessToken(chatbotId)
             .flatMap(accessToken -> 
                 // Call the MCP tool with fetched access token
+                // Google Meet link will be auto-generated
                 calendarEventTool.createCalendarEvent(
                     accessToken, summary, description, startDateTime, endDateTime, 
-                    timeZone, location, attendees, conferenceLink
+                    timeZone, location, attendees
                 )
             )
             .map(response -> {

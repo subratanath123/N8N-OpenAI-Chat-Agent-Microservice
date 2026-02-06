@@ -40,20 +40,24 @@ public class GoogleCalendarService {
      * @return Created calendar event response
      */
     public Mono<CalendarEventResponse> createEvent(String accessToken, CalendarEventRequest request) {
-        log.info("Creating calendar event: {}", request.getSummary());
+        log.info("Creating calendar event with auto-generated Google Meet link: {}", request.getSummary());
 
         String url = String.format("/calendars/%s/events", CALENDAR_ID);
         Map<String, Object> requestBody = buildGoogleCalendarRequestBody(request);
 
+        // Add conferenceDataVersion=1 query parameter to enable Google Meet link generation
         return webClient.post()
-                .uri(url)
+                .uri(uriBuilder -> uriBuilder
+                    .path(url)
+                    .queryParam("conferenceDataVersion", 1)
+                    .build())
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(requestBody)
                 .retrieve()
                 .bodyToMono(Map.class)
                 .map(this::mapToCalendarEventResponse)
-                .doOnSuccess(response -> log.info("Calendar event created successfully: {}", response.getId()))
+                .doOnSuccess(response -> log.info("Calendar event created successfully with Meet link: {}", response.getId()))
                 .doOnError(error -> log.error("Error creating calendar event: {}", error.getMessage()));
     }
 
@@ -92,31 +96,14 @@ public class GoogleCalendarService {
             body.put("attendees", attendees);
         }
 
-        // Conference/Call link
-        if (request.getConferenceLink() != null && !request.getConferenceLink().isBlank()) {
-            // Add conference link to description if description exists
-            String description = request.getDescription() != null ? request.getDescription() : "";
-            if (!description.contains(request.getConferenceLink())) {
-                String conferenceInfo = "\n\n📞 Join meeting: " + request.getConferenceLink();
-                body.put("description", description + conferenceInfo);
-            }
-            
-            // Also add as a conferenceData for Google Meet integration (optional)
-            // Note: This creates a custom conference link entry point
-            Map<String, Object> conferenceData = new HashMap<>();
-            conferenceData.put("conferenceSolution", Map.of(
-                "name", "Custom Conference Link",
-                "iconUri", "https://fonts.gstatic.com/s/i/productlogos/meet_2020q4/v6/web-512dp/logo_meet_2020q4_color_2x_web_512dp.png"
-            ));
-            conferenceData.put("entryPoints", List.of(
-                Map.of(
-                    "entryPointType", "video",
-                    "uri", request.getConferenceLink(),
-                    "label", request.getConferenceLink()
-                )
-            ));
-            body.put("conferenceData", conferenceData);
-        }
+        // Automatically create Google Meet conference link
+        // This requests Google Calendar to generate a Meet link automatically
+        Map<String, Object> conferenceData = new HashMap<>();
+        conferenceData.put("createRequest", Map.of(
+            "requestId", java.util.UUID.randomUUID().toString(),
+            "conferenceSolutionKey", Map.of("type", "hangoutsMeet")
+        ));
+        body.put("conferenceData", conferenceData);
 
         return body;
     }
@@ -129,14 +116,26 @@ public class GoogleCalendarService {
         Map<String, Object> start = (Map<String, Object>) googleResponse.get("start");
         Map<String, Object> end = (Map<String, Object>) googleResponse.get("end");
 
-        // Extract conference link if present
+        // Extract Google Meet conference link
         String conferenceLink = null;
         Map<String, Object> conferenceData = (Map<String, Object>) googleResponse.get("conferenceData");
         if (conferenceData != null) {
+            // Try to get from entryPoints first (primary video link)
             List<Map<String, Object>> entryPoints = (List<Map<String, Object>>) conferenceData.get("entryPoints");
             if (entryPoints != null && !entryPoints.isEmpty()) {
-                Map<String, Object> firstEntry = entryPoints.get(0);
-                conferenceLink = (String) firstEntry.get("uri");
+                // Find the video entry point
+                for (Map<String, Object> entry : entryPoints) {
+                    String entryPointType = (String) entry.get("entryPointType");
+                    if ("video".equals(entryPointType)) {
+                        conferenceLink = (String) entry.get("uri");
+                        break;
+                    }
+                }
+            }
+            
+            // If not found, try hangoutLink (legacy field for Meet links)
+            if (conferenceLink == null) {
+                conferenceLink = (String) googleResponse.get("hangoutLink");
             }
         }
 
@@ -150,7 +149,7 @@ public class GoogleCalendarService {
                 .startDateTime(start != null ? (String) start.get("dateTime") : null)
                 .endDateTime(end != null ? (String) end.get("dateTime") : null)
                 .conferenceLink(conferenceLink)
-                .message("Calendar event created successfully")
+                .message("Calendar event created successfully with Google Meet link")
                 .build();
     }
 }
