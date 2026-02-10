@@ -1,0 +1,491 @@
+# OpenAPI 3.0 Specification
+
+```yaml
+openapi: 3.0.0
+info:
+  title: Multimodal N8N Chat API
+  description: REST API for multimodal chat with file uploads to OpenAI Vector Store
+  version: 1.0.0
+  contact:
+    name: API Support
+    email: support@example.com
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8080
+    description: Development server
+  - url: https://api.example.com
+    description: Production server
+
+paths:
+  /v1/api/n8n/multimodal/authenticated/multipart/chat:
+    post:
+      tags:
+        - Multimodal Chat
+      summary: Send authenticated multimodal chat with file uploads
+      description: Upload files and send multimodal message to N8N (requires authentication)
+      operationId: sendAuthenticatedMultimodalChat
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - message
+                - files
+                - chatbotId
+                - sessionId
+              properties:
+                message:
+                  type: string
+                  description: Chat message text
+                  example: "Please analyze these documents"
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Array of files to upload
+                chatbotId:
+                  type: string
+                  description: Unique chatbot identifier
+                  example: "chatbot-123"
+                sessionId:
+                  type: string
+                  description: Session identifier for tracking
+                  example: "session-456"
+      responses:
+        '200':
+          description: Successful upload and processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultimodalChatResponse'
+        '400':
+          description: Bad request (invalid parameters or files)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized (missing or invalid token)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/api/n8n/multimodal/anonymous/multipart/chat:
+    post:
+      tags:
+        - Multimodal Chat
+      summary: Send anonymous multimodal chat with file uploads
+      description: Upload files and send multimodal message to N8N (no authentication required)
+      operationId: sendAnonymousMultimodalChat
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - message
+                - files
+                - chatbotId
+                - sessionId
+              properties:
+                message:
+                  type: string
+                  description: Chat message text
+                  example: "Please analyze these documents"
+                files:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Array of files to upload
+                chatbotId:
+                  type: string
+                  description: Unique chatbot identifier
+                  example: "chatbot-123"
+                sessionId:
+                  type: string
+                  description: Session identifier for tracking
+                  example: "session-456"
+      responses:
+        '200':
+          description: Successful upload and processing
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MultimodalChatResponse'
+        '400':
+          description: Bad request (invalid parameters or files)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /v1/api/n8n/multimodal/attachments/{chatbotId}:
+    get:
+      tags:
+        - Attachments
+      summary: List chatbot attachments
+      description: Get list of attachment metadata for a chatbot
+      operationId: listChatbotAttachments
+      parameters:
+        - name: chatbotId
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Chatbot identifier
+          example: "chatbot-123"
+      responses:
+        '200':
+          description: List of attachments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '500':
+          description: Internal server error
+
+components:
+  schemas:
+    MultimodalChatResponse:
+      type: object
+      description: Response from multimodal chat endpoint
+      required:
+        - success
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          description: Operation success status
+          example: true
+        result:
+          type: object
+          description: N8N response data (on success)
+          properties:
+            response:
+              type: string
+              description: Response text from N8N
+              example: "Analysis complete. The documents contain..."
+            metadata:
+              type: object
+              description: Additional metadata
+              example:
+                processedAt: "2024-02-17T10:30:56Z"
+                totalTokens: 1250
+        vectorIdMap:
+          type: object
+          description: Mapping of filenames to vector store IDs
+          additionalProperties:
+            type: string
+          example:
+            "document1.pdf": "vs_abc123xyz"
+            "document2.docx": "vs_abc123xyz"
+        vectorAttachments:
+          type: array
+          description: List of uploaded attachments
+          items:
+            $ref: '#/components/schemas/VectorAttachment'
+        errorCode:
+          type: string
+          description: Error code (if operation failed)
+          enum:
+            - INVALID_REQUEST
+            - INVALID_ATTACHMENT
+            - UPLOAD_ERROR
+            - CHATBOT_NOT_FOUND
+            - INTERNAL_ERROR
+          example: null
+        errorMessage:
+          type: string
+          description: Error message (if operation failed)
+          example: null
+        timestamp:
+          type: number
+          description: Response timestamp in milliseconds
+          example: 1708123456800
+
+    VectorAttachment:
+      type: object
+      description: Uploaded file attachment metadata
+      required:
+        - vectorId
+        - fileName
+        - mimeType
+        - fileSize
+        - uploadedAt
+      properties:
+        vectorId:
+          type: string
+          description: Vector store file ID
+          example: "vs_abc123xyz_file_001"
+        fileName:
+          type: string
+          description: Original filename
+          example: "document1.pdf"
+        mimeType:
+          type: string
+          description: MIME type
+          example: "application/pdf"
+        fileSize:
+          type: number
+          description: File size in bytes
+          example: 5242880
+        uploadedAt:
+          type: number
+          description: Upload timestamp in milliseconds
+          example: 1708123456789
+
+    ErrorResponse:
+      type: object
+      description: Error response
+      required:
+        - success
+        - errorCode
+        - errorMessage
+        - timestamp
+      properties:
+        success:
+          type: boolean
+          example: false
+        errorCode:
+          type: string
+          enum:
+            - INVALID_REQUEST
+            - INVALID_ATTACHMENT
+            - UPLOAD_ERROR
+            - CHATBOT_NOT_FOUND
+            - INTERNAL_ERROR
+          example: "INVALID_REQUEST"
+        errorMessage:
+          type: string
+          example: "ChatbotId is required"
+        timestamp:
+          type: number
+          example: 1708123456800
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer token
+
+tags:
+  - name: Multimodal Chat
+    description: Endpoints for multimodal chat with file uploads
+  - name: Attachments
+    description: Endpoints for managing attachments
+```
+
+---
+
+## Using This Specification
+
+### Generate Client Code
+
+**TypeScript (OpenAPI Generator)**
+```bash
+npx @openapitools/openapi-generator-cli generate \
+  -i openapi.yaml \
+  -g typescript-fetch \
+  -o src/generated/api
+```
+
+**Python (OpenAPI Generator)**
+```bash
+openapi-generator-cli generate \
+  -i openapi.yaml \
+  -g python \
+  -o src/generated/api
+```
+
+**JavaScript (Swagger CodeGen)**
+```bash
+npm install swagger-code-gen-cli
+swagger-code-gen-cli generate -i openapi.yaml -l javascript
+```
+
+---
+
+## Postman Collection
+
+```json
+{
+  "info": {
+    "name": "Multimodal N8N Chat API",
+    "description": "Collection for testing Multimodal Chat API endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Authenticated Upload",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "exec": [
+              "if (pm.response.code === 200) {",
+              "  var jsonData = pm.response.json();",
+              "  pm.environment.set('vectorStoreId', jsonData.vectorIdMap[Object.keys(jsonData.vectorIdMap)[0]]);",
+              "}"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{authToken}}",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "message",
+              "value": "Please analyze these documents",
+              "type": "text"
+            },
+            {
+              "key": "chatbotId",
+              "value": "chatbot-123",
+              "type": "text"
+            },
+            {
+              "key": "sessionId",
+              "value": "session-{{$timestamp}}",
+              "type": "text"
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/v1/api/n8n/multimodal/authenticated/multipart/chat",
+          "protocol": "http",
+          "host": ["{{BASE_URL}}"],
+          "path": [
+            "v1",
+            "api",
+            "n8n",
+            "multimodal",
+            "authenticated",
+            "multipart",
+            "chat"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Anonymous Upload",
+      "request": {
+        "method": "POST",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "message",
+              "value": "Please analyze these documents",
+              "type": "text"
+            },
+            {
+              "key": "chatbotId",
+              "value": "chatbot-123",
+              "type": "text"
+            },
+            {
+              "key": "sessionId",
+              "value": "session-{{$timestamp}}",
+              "type": "text"
+            },
+            {
+              "key": "files",
+              "type": "file",
+              "src": []
+            }
+          ]
+        },
+        "url": {
+          "raw": "{{BASE_URL}}/v1/api/n8n/multimodal/anonymous/multipart/chat",
+          "protocol": "http",
+          "host": ["{{BASE_URL}}"],
+          "path": [
+            "v1",
+            "api",
+            "n8n",
+            "multimodal",
+            "anonymous",
+            "multipart",
+            "chat"
+          ]
+        }
+      }
+    },
+    {
+      "name": "List Attachments",
+      "request": {
+        "method": "GET",
+        "url": {
+          "raw": "{{BASE_URL}}/v1/api/n8n/multimodal/attachments/chatbot-123",
+          "protocol": "http",
+          "host": ["{{BASE_URL}}"],
+          "path": [
+            "v1",
+            "api",
+            "n8n",
+            "multimodal",
+            "attachments",
+            "chatbot-123"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "authToken",
+      "value": ""
+    }
+  ]
+}
+```
+
+---
+
+**Version:** 1.0  
+**Format:** OpenAPI 3.0.0  
+**Last Updated:** 2024-02-17
+

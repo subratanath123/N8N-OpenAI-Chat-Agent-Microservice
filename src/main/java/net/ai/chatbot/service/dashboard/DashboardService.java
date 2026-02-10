@@ -261,11 +261,11 @@ public class DashboardService {
         // Aggregate conversations by date for user's chatbots
         MatchOperation matchConversations = Aggregation.match(
                 Criteria.where("chatbotId").in(userChatBotIds)
-                        .and("createdAt").gte(startDate)
+                        .and("createdAt").gte(startDate).exists(true).ne(null)
         );
         
         ProjectionOperation projectDate = Aggregation.project()
-                .andExpression("dateToString('%Y-%m-%d', createdAt)").as("date");
+                .andExpression("dateToString('%Y-%m-%d', $createdAt)").as("date");
         
         GroupOperation groupByDate = Aggregation.group("date")
                 .count().as("conversations");
@@ -612,72 +612,84 @@ public class DashboardService {
     private long getPeakMessagesInDay(List<String> chatbotIds) {
         if (chatbotIds.isEmpty()) return 0;
         
-        // Group by date and count messages
-        MatchOperation matchChatbots = Aggregation.match(Criteria.where("chatbotId").in(chatbotIds));
-        ProjectionOperation projectDate = Aggregation.project()
-                .andExpression("dateToString('%Y-%m-%d', createdAt)").as("date");
-        
-        GroupOperation groupByDate = Aggregation.group("date")
-                .count().as("count");
-        
-        SortOperation sort = Aggregation.sort(org.springframework.data.domain.Sort.by(
-                org.springframework.data.domain.Sort.Direction.DESC, "count"));
-        
-        LimitOperation limit = Aggregation.limit(1);
-        
-        Aggregation aggregation = Aggregation.newAggregation(
-                matchChatbots,
-                projectDate,
-                groupByDate,
-                sort,
-                limit
-        );
-        
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> results = (List<Map<String, Object>>) (List<?>) mongoTemplate.aggregate(
-                aggregation,
-                "n8n_chat_session_histories",
-                Map.class
-        ).getMappedResults();
-        
-        if (results.isEmpty()) {
+        try {
+            // Group by date and count messages
+            MatchOperation matchChatbots = Aggregation.match(Criteria.where("chatbotId").in(chatbotIds)
+                    .and("createdAt").exists(true).ne(null));
+            ProjectionOperation projectDate = Aggregation.project()
+                    .andExpression("dateToString('%Y-%m-%d', $createdAt)").as("date");
+            
+            GroupOperation groupByDate = Aggregation.group("date")
+                    .count().as("count");
+            
+            SortOperation sort = Aggregation.sort(org.springframework.data.domain.Sort.by(
+                    org.springframework.data.domain.Sort.Direction.DESC, "count"));
+            
+            LimitOperation limit = Aggregation.limit(1);
+            
+            Aggregation aggregation = Aggregation.newAggregation(
+                    matchChatbots,
+                    projectDate,
+                    groupByDate,
+                    sort,
+                    limit
+            );
+            
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> results = (List<Map<String, Object>>) (List<?>) mongoTemplate.aggregate(
+                    aggregation,
+                    "n8n_chat_session_histories",
+                    Map.class
+            ).getMappedResults();
+            
+            if (results.isEmpty()) {
+                return 0;
+            }
+            
+            return ((Number) results.get(0).get("count")).longValue();
+        } catch (Exception e) {
+            log.error("Error calculating peak messages in day: ", e);
             return 0;
         }
-        
-        return ((Number) results.get(0).get("count")).longValue();
     }
 
     private Map<String, Long> getMessagesByHour(List<String> chatbotIds) {
         if (chatbotIds.isEmpty()) return new HashMap<>();
         
-        MatchOperation matchChatbots = Aggregation.match(Criteria.where("chatbotId").in(chatbotIds));
-        ProjectionOperation projectHour = Aggregation.project()
-                .andExpression("hour(createdAt)").as("hour");
-        
-        GroupOperation groupByHour = Aggregation.group("hour")
-                .count().as("count");
-        
-        Aggregation aggregation = Aggregation.newAggregation(
-                matchChatbots,
-                projectHour,
-                groupByHour
-        );
-        
-        @SuppressWarnings("unchecked")
-        List<Map<String, Object>> results = (List<Map<String, Object>>) (List<?>) mongoTemplate.aggregate(
-                aggregation,
-                "n8n_chat_session_histories",
-                Map.class
-        ).getMappedResults();
-        
-        Map<String, Long> hourMap = new HashMap<>();
-        for (Map<String, Object> result : results) {
-            int hour = ((Number) result.get("_id")).intValue();
-            long count = ((Number) result.get("count")).longValue();
-            hourMap.put(String.valueOf(hour), count);
+        try {
+            MatchOperation matchChatbots = Aggregation.match(Criteria.where("chatbotId").in(chatbotIds)
+                    .and("createdAt").exists(true).ne(null));
+            ProjectionOperation projectHour = Aggregation.project()
+                    .andExpression("hour($createdAt)").as("hour");
+            
+            GroupOperation groupByHour = Aggregation.group("hour")
+                    .count().as("count");
+            
+            Aggregation aggregation = Aggregation.newAggregation(
+                    matchChatbots,
+                    projectHour,
+                    groupByHour
+            );
+            
+            @SuppressWarnings("unchecked")
+            List<Map<String, Object>> results = (List<Map<String, Object>>) (List<?>) mongoTemplate.aggregate(
+                    aggregation,
+                    "n8n_chat_session_histories",
+                    Map.class
+            ).getMappedResults();
+            
+            Map<String, Long> hourMap = new HashMap<>();
+            for (Map<String, Object> result : results) {
+                int hour = ((Number) result.get("_id")).intValue();
+                long count = ((Number) result.get("count")).longValue();
+                hourMap.put(String.valueOf(hour), count);
+            }
+            
+            return hourMap;
+        } catch (Exception e) {
+            log.error("Error calculating messages by hour: ", e);
+            return new HashMap<>();
         }
-        
-        return hourMap;
     }
 
     private long getActiveUsersCountAfter(Instant date, List<String> chatbotIds) {

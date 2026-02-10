@@ -398,3 +398,9 @@ If you're upgrading from the old implementation:
 **Breaking Change:** Yes - `accessToken` parameter replaced with `chatbotId`  
 **Migration Required:** Update n8n workflows to use new parameter
 
+
+
+
+
+
+

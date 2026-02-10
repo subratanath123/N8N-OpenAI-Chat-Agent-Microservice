@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import net.ai.chatbot.dto.n8n.FileAttachment;
 
 import java.util.List;
 
@@ -15,7 +16,6 @@ public class Message {
 
     private String role;
     private String message;
-    private List<Attachment> attachments;
     private String sessionId;
     private String chatbotId;
 
@@ -23,6 +23,9 @@ public class Message {
     private String instruction;
     private String fallbackMessage;
     private String restrictDataSource;
+
+    // File attachments (already uploaded with fileIds)
+    private List<FileAttachment> fileAttachments;  // Pre-uploaded file references
 
 }
 

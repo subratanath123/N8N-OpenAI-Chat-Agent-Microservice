@@ -2,6 +2,7 @@ package net.ai.chatbot.service.n8n;
 
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.Message;
+import net.ai.chatbot.dto.n8n.FileAttachment;
 import net.ai.chatbot.dto.n8n.N8NChatResponse;
 import net.ai.chatbot.entity.ChatBot;
 import net.ai.chatbot.service.webclient.GenericWebClient;
@@ -15,7 +16,6 @@ import org.springframework.util.LinkedMultiValueMap;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.reactive.function.BodyInserters;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -44,7 +44,8 @@ public class GenericN8NService<T, R> {
                 chatBot.getChatbotknowledgebasecollection(),
                 chatBot.getVectorIndexName(),
                 Collections.emptyMap(),
-                Collections.emptyMap()
+                Collections.emptyMap(),
+                message.getFileAttachments()
         );
     }
 
@@ -56,7 +57,8 @@ public class GenericN8NService<T, R> {
                                               String chatbotCollection,
                                               String vectorIndexName,
                                               Map<String, Object> extraFormFields,
-                                              Map<String, String> extraHeaders) {
+                                              Map<String, String> extraHeaders, List<FileAttachment> fileAttachments) {
+
         if (webhookUrl == null || webhookUrl.isBlank()) {
             return N8NChatResponse.error("INVALID_URL", "Webhook URL is required");
         }
@@ -66,8 +68,17 @@ public class GenericN8NService<T, R> {
         }
 
         try {
-            Map<String, String> headers = buildHeaders(chatBot, chatbotCollection, chatbotId, vectorIndexName, conversationId, extraHeaders);
+            Map<String, String> headers = buildHeaders(chatBot, chatbotCollection, chatbotId,
+                    vectorIndexName, conversationId, extraHeaders);
 
+            // Add multimodal headers
+            if (fileAttachments != null && !fileAttachments.isEmpty()) {
+                headers.put("multimodal-type", "vector-references");
+                headers.put("file-count", String.valueOf(fileAttachments.size()));
+                headers.put("file-ids", fileAttachments.stream().map(FileAttachment::getFileId).collect(Collectors.joining(",")));
+            }
+
+            // Send as form data (text message only)
             GenericWebClientResponse<String> responseEntity = genericWebClient.postWithResponse(
                     webhookUrl,
                     () -> BodyInserters.fromFormData(buildFormDataAsStringMap(chatBot, messageContent, extraFormFields)),

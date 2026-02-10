@@ -1,0 +1,612 @@
+{
+  "info": {
+    "_postman_id": "multimodal-chat-api-v1",
+    "name": "Multimodal Chat API",
+    "description": "API Collection for Multimodal Chat with Vector Store\n\nVersion: 1.0\nStatus: Production Ready\nLast Updated: February 7, 2026\n\n## Environment Variables Required:\n- base_url: API base URL (e.g., http://localhost:8080)\n- chatbot_id: Your chatbot ID\n- session_id: Session identifier\n- auth_token: JWT token (for authenticated endpoints)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12345"
+  },
+  "item": [
+    {
+      "name": "Multimodal Chat",
+      "item": [
+        {
+          "name": "Send Message (Anonymous)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has success flag', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('success');",
+                  "});",
+                  "",
+                  "pm.test('Save vectorIdMap to environment', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.vectorIdMap) {",
+                  "        pm.environment.set('vectorIdMap', JSON.stringify(jsonData.vectorIdMap));",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('Save vectorAttachments to environment', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.vectorAttachments && jsonData.vectorAttachments.length > 0) {",
+                  "        var firstVectorId = jsonData.vectorAttachments[0].vectorId;",
+                  "        pm.environment.set('first_vector_id', firstVectorId);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Please analyze this document and provide key insights\",\n  \"attachments\": [],\n  \"sessionId\": \"{{session_id}}\",\n  \"chatbotId\": \"{{chatbot_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/api/n8n/multimodal/anonymous/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "n8n",
+                "multimodal",
+                "anonymous",
+                "chat"
+              ]
+            },
+            "description": "Send a chat message without attachments (anonymous user)"
+          },
+          "response": [
+            {
+              "name": "Success",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"message\": \"Hello\",\n  \"chatbotId\": \"bot-123\",\n  \"sessionId\": \"sess-456\"\n}"
+                },
+                "url": {
+                  "raw": "http://localhost:8080/v1/api/n8n/multimodal/anonymous/chat",
+                  "protocol": "http",
+                  "host": [
+                    "localhost"
+                  ],
+                  "port": "8080",
+                  "path": [
+                    "v1",
+                    "api",
+                    "n8n",
+                    "multimodal",
+                    "anonymous",
+                    "chat"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json",
+                  "description": ""
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"result\": \"The document analysis is complete. Here are the key insights...\",\n  \"vectorIdMap\": {},\n  \"vectorAttachments\": [],\n  \"timestamp\": 1707385650000\n}"
+            }
+          ]
+        },
+        {
+          "name": "Send Message with File (Anonymous)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Pre-request to prepare file data if needed"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has vectorIdMap', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('vectorIdMap');",
+                  "    pm.expect(Object.keys(jsonData.vectorIdMap).length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('Save vector ID for next request', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var vectorIds = Object.values(jsonData.vectorIdMap);",
+                  "    if (vectorIds.length > 0) {",
+                  "        pm.environment.set('test_vector_id', vectorIds[0]);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Please analyze this quarterly report\",\n  \"attachments\": [\n    {\n      \"name\": \"sample_report.pdf\",\n      \"type\": \"application/pdf\",\n      \"size\": 256000,\n      \"data\": \"JVBERi0xLjQKJeLjz9MNCjEgMCBvYmogICAgICAgICAgICAgICAgICAgICAgICA1MCBnZW4gMApvYmogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICBSZWYgU3RtCjMgMCBvYmogICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgODAgZ2VuIDAK\"\n    }\n  ],\n  \"sessionId\": \"{{session_id}}\",\n  \"chatbotId\": \"{{chatbot_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/api/n8n/multimodal/anonymous/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "n8n",
+                "multimodal",
+                "anonymous",
+                "chat"
+              ]
+            },
+            "description": "Send a chat message with file attachment (anonymous user)\n\nNote: Replace the 'data' field with actual Base64 encoded file content"
+          },
+          "response": [
+            {
+              "name": "Success with Attachments",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "raw",
+                  "raw": ""
+                },
+                "url": {
+                  "raw": "{{base_url}}/v1/api/n8n/multimodal/anonymous/chat",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "api",
+                    "n8n",
+                    "multimodal",
+                    "anonymous",
+                    "chat"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"success\": true,\n  \"result\": \"Analysis of the quarterly report shows...\",\n  \"vectorIdMap\": {\n    \"sample_report.pdf\": \"attachment_bot_123_session_456_report_1707385649123\"\n  },\n  \"vectorAttachments\": [\n    {\n      \"vectorId\": \"attachment_bot_123_session_456_report_1707385649123\",\n      \"fileName\": \"sample_report.pdf\",\n      \"mimeType\": \"application/pdf\",\n      \"fileSize\": 256000,\n      \"uploadedAt\": 1707385649123\n    }\n  ],\n  \"timestamp\": 1707385650000\n}"
+            }
+          ]
+        },
+        {
+          "name": "Send Message (Authenticated)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              },
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Analyze this confidential document\",\n  \"attachments\": [],\n  \"sessionId\": \"{{session_id}}\",\n  \"chatbotId\": \"{{chatbot_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/api/n8n/multimodal/authenticated/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "n8n",
+                "multimodal",
+                "authenticated",
+                "chat"
+              ]
+            },
+            "description": "Send a chat message as an authenticated user (requires JWT token)"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Attachment Management",
+      "item": [
+        {
+          "name": "List All Attachments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is array', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Each attachment has required fields', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    jsonData.forEach(function(att) {",
+                  "        pm.expect(att).to.have.property('vectorId');",
+                  "        pm.expect(att).to.have.property('fileName');",
+                  "        pm.expect(att).to.have.property('fileSize');",
+                  "    });",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/api/n8n/multimodal/attachments/{{chatbot_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "n8n",
+                "multimodal",
+                "attachments",
+                "{{chatbot_id}}"
+              ]
+            },
+            "description": "Get list of all attachments for a chatbot"
+          },
+          "response": [
+            {
+              "name": "List Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/v1/api/n8n/multimodal/attachments/bot-123",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "api",
+                    "n8n",
+                    "multimodal",
+                    "attachments",
+                    "bot-123"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "[\n  {\n    \"vectorId\": \"attachment_bot_123_session_456_report_1707385649123\",\n    \"fileName\": \"report.pdf\",\n    \"mimeType\": \"application/pdf\",\n    \"fileSize\": 256000,\n    \"uploadedAt\": 1707385649123,\n    \"chatbotId\": \"bot_123\",\n    \"sessionId\": \"session_456\"\n  },\n  {\n    \"vectorId\": \"attachment_bot_123_session_456_image_1707385650000\",\n    \"fileName\": \"chart.png\",\n    \"mimeType\": \"image/png\",\n    \"fileSize\": 125000,\n    \"uploadedAt\": 1707385650000,\n    \"chatbotId\": \"bot_123\",\n    \"sessionId\": \"session_456\"\n  }\n]"
+            }
+          ]
+        },
+        {
+          "name": "Get Attachment Metadata",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has attachment metadata', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('vectorId');",
+                  "    pm.expect(jsonData).to.have.property('fileName');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/api/n8n/multimodal/attachments/{{chatbot_id}}/{{first_vector_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "n8n",
+                "multimodal",
+                "attachments",
+                "{{chatbot_id}}",
+                "{{first_vector_id}}"
+              ]
+            },
+            "description": "Get metadata for a specific attachment by vectorId"
+          },
+          "response": [
+            {
+              "name": "Metadata Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/v1/api/n8n/multimodal/attachments/bot-123/attachment_bot_123_session_456_report_1707385649123",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "api",
+                    "n8n",
+                    "multimodal",
+                    "attachments",
+                    "bot-123",
+                    "attachment_bot_123_session_456_report_1707385649123"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [],
+              "cookie": [],
+              "body": "{\n  \"vectorId\": \"attachment_bot_123_session_456_report_1707385649123\",\n  \"fileName\": \"report.pdf\",\n  \"mimeType\": \"application/pdf\",\n  \"fileSize\": 256000,\n  \"uploadedAt\": 1707385649123,\n  \"chatbotId\": \"bot_123\",\n  \"sessionId\": \"session_456\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete Attachment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response contains success message', function () {",
+                  "    var body = pm.response.text();",
+                  "    pm.expect(body).to.include('deleted');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/api/n8n/multimodal/attachments/{{chatbot_id}}/{{first_vector_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "n8n",
+                "multimodal",
+                "attachments",
+                "{{chatbot_id}}",
+                "{{first_vector_id}}"
+              ]
+            },
+            "description": "Delete an attachment from the vector store"
+          },
+          "response": [
+            {
+              "name": "Delete Success",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{base_url}}/v1/api/n8n/multimodal/attachments/bot-123/attachment_bot_123_session_456_report_1707385649123",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "api",
+                    "n8n",
+                    "multimodal",
+                    "attachments",
+                    "bot-123",
+                    "attachment_bot_123_session_456_report_1707385649123"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "text",
+              "header": [],
+              "cookie": [],
+              "body": "Attachment deleted successfully"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Error Scenarios",
+      "item": [
+        {
+          "name": "Missing ChatbotId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Test message\",\n  \"sessionId\": \"{{session_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/api/n8n/multimodal/anonymous/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "n8n",
+                "multimodal",
+                "anonymous",
+                "chat"
+              ]
+            },
+            "description": "Test error: missing chatbotId (should return 400)"
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid ChatbotId",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Test message\",\n  \"chatbotId\": \"invalid-bot-id-12345\",\n  \"sessionId\": \"{{session_id}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/api/n8n/multimodal/anonymous/chat",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "n8n",
+                "multimodal",
+                "anonymous",
+                "chat"
+              ]
+            },
+            "description": "Test error: invalid chatbotId (should return 400 CHATBOT_NOT_FOUND)"
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Vector ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/api/n8n/multimodal/attachments/{{chatbot_id}}/invalid-vector-id-123",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "api",
+                "n8n",
+                "multimodal",
+                "attachments",
+                "{{chatbot_id}}",
+                "invalid-vector-id-123"
+              ]
+            },
+            "description": "Test error: invalid vectorId (should return 404)"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "chatbot_id",
+      "value": "your-chatbot-id-here",
+      "type": "string"
+    },
+    {
+      "key": "session_id",
+      "value": "session_{{$timestamp}}",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "your-jwt-token-here",
+      "type": "string"
+    },
+    {
+      "key": "first_vector_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "vectorIdMap",
+      "value": "",
+      "type": "string"
+    }
+  ]
+}
+

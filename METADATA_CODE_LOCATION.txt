@@ -1,0 +1,243 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║            WHERE METADATA IS ADDED - EXACT CODE LOCATION                        ║
+║                                                                                  ║
+║  File: src/main/java/net/ai/chatbot/service/n8n/AttachmentSaveService.java    ║
+║  Method: addToVectorStoreAndGetIds()                                            ║
+║  Lines: 491-533                                                                 ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                   LINE 474: METHOD DEFINITION                                   ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  private AttachmentSaveResult addToVectorStoreAndGetIds(                       ┃
+┃      String fileId,                                                            ┃
+┃      String chatbotId,                                                         ┃
+┃      String sessionId,                                                         ┃
+┃      Map<String, Object> customAttributes) {                                   ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃              STEP 1: LINES 491-492 - CREATE ATTRIBUTES MAP                     ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃    491 |            // ✨ ADD METADATA ATTRIBUTES - Store metadata directly    ┃
+┃        |            // in OpenAI Vector Store                                   ┃
+┃    492 |            Map<String, Object> attributes = new HashMap<>();          ┃
+┃        |                                           ↑                            ┃
+┃        |                                    ✨ CREATED HERE                     ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃          STEP 2: LINES 495-498 - ADD DEFAULT ATTRIBUTES                        ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃    494 |            // Default attributes (always included)                     ┃
+┃    495 |            attributes.put("fileId", fileId);  ✨                      ┃
+┃    496 |            attributes.put("chatbotId", chatbotId);  ✨                ┃
+┃    497 |            attributes.put("sessionId", sessionId);  ✨                ┃
+┃    498 |            attributes.put("uploadedAt",  ✨                           ┃
+┃        |                String.valueOf(System.currentTimeMillis()));            ┃
+┃        |                                                                        ┃
+┃  Result:                                                                        ┃
+┃  ┌────────────────────────────────────┐                                       ┃
+┃  │  attributes = {                    │                                       ┃
+┃  │    "fileId": "file-abc123xyz",     │ ← This is where fileId is stored! ✨  ┃
+┃  │    "chatbotId": "chatbot_123",     │ ← chatbotId also stored            ✨  ┃
+┃  │    "sessionId": "session_456",     │ ← sessionId also stored            ✨  ┃
+┃  │    "uploadedAt": "1707385649123"   │ ← timestamp stored                 ✨  ┃
+┃  │  }                                 │                                       ┃
+┃  └────────────────────────────────────┘                                       ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃        STEP 3: LINES 500-514 - MERGE CUSTOM ATTRIBUTES (IF PROVIDED)           ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃    500 |            // Merge custom attributes if provided                      ┃
+┃    501 |            if (customAttributes != null &&                            ┃
+┃        |                !customAttributes.isEmpty()) {                         ┃
+┃    502 |                int attributeCount = attributes.size();                ┃
+┃    503 |                for (Map.Entry<String, Object> entry :                 ┃
+┃        |                    customAttributes.entrySet()) {                     ┃
+┃    504 |                    if (attributeCount >= 16) {                        ┃
+┃    505 |                        log.warn("Cannot add more attributes...");     ┃
+┃    506 |                        break;                                         ┃
+┃    507 |                    }                                                   ┃
+┃    508 |                    if (!attributes.containsKey(                       ┃
+┃        |                        entry.getKey())) {                            ┃
+┃    509 |                        attributes.put(entry.getKey(),                 ┃
+┃        |                            entry.getValue());  ✨ CUSTOM ADDED HERE  ┃
+┃    510 |                    }                                                   ┃
+┃    511 |                }                                                       ┃
+┃    512 |            }                                                           ┃
+┃        |                                                                        ┃
+┃  What happens:                                                                  ┃
+┃  - Validates total doesn't exceed 16 attributes                               ┃
+┃  - Prevents duplicate keys                                                     ┃
+┃  - Adds custom attributes like userId, department, project, etc.              ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃      STEP 4: LINES 517-519 - LOG METADATA BEING SENT                            ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃    517 |            log.debug("Adding {} metadata attributes to vector  ┃
+┃        |                store file", attributes.size());                       ┃
+┃    518 |            log.debug("Metadata attributes: {}", attributes);  ✨      ┃
+┃        |                                                                        ┃
+┃  This logs:                                                                     ┃
+┃  DEBUG: Adding 4 metadata attributes to vector store file                     ┃
+┃  DEBUG: Metadata attributes: {fileId=file-abc123xyz, chatbotId=...}  ✨       ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃         STEP 5: LINE 516 - ADD ATTRIBUTES TO REQUEST BODY                      ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃    516 |            requestBody.put("attributes", attributes);  ✨             ┃
+┃        |                          ↑                                            ┃
+┃        |                   ATTRIBUTES ADDED TO REQUEST BODY!                   ┃
+┃        |                                                                        ┃
+┃  The requestBody now contains:                                                 ┃
+┃  ┌────────────────────────────────────────────────────────────┐               ┃
+┃  │  {                                                          │               ┃
+┃  │    "file_id": "file-abc123xyz",                            │               ┃
+┃  │    "chunking_strategy": { "type": "auto" },               │               ┃
+┃  │    "attributes": {                    ✨ ADDED HERE        │               ┃
+┃  │      "fileId": "file-abc123xyz",                           │               ┃
+┃  │      "chatbotId": "chatbot_123",                           │               ┃
+┃  │      "sessionId": "session_456",                           │               ┃
+┃  │      "uploadedAt": "1707385649123"                         │               ┃
+┃  │    }                                                        │               ┃
+┃  │  }                                                          │               ┃
+┃  └────────────────────────────────────────────────────────────┘               ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃         STEP 6: LINES 521-530 - CREATE HTTP REQUEST                             ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃    520 |            // Create headers                                           ┃
+┃    521 |            HttpHeaders headers = new HttpHeaders();                   ┃
+┃    522 |            headers.set("Authorization", "Bearer " + openaiApiKey);   ┃
+┃    523 |            headers.set("OpenAI-Beta", "assistants=v2");              ┃
+┃    524 |            headers.setContentType(MediaType.APPLICATION_JSON);       ┃
+┃    525 |                                                                        ┃
+┃    526 |            // Make request                                            ┃
+┃    527 |            HttpEntity<Map<String, Object>> entity =                  ┃
+┃        |                new HttpEntity<>(requestBody, headers);               ┃
+┃        |                                 ↑                                     ┃
+┃        |                    requestBody with attributes passed here           ┃
+┃    528 |                                                                        ┃
+┃    529 |            String url = String.format(                               ┃
+┃        |                "%s/vector_stores/%s/files",                          ┃
+┃        |                openaiBaseUrl, vectorStoreId);                        ┃
+┃        |                                                                        ┃
+┃  HTTP Request structure:                                                       ┃
+┃  ┌────────────────────────────────────────────────────┐                      ┃
+┃  │  POST /v1/vector_stores/{id}/files                │                      ┃
+┃  │  Authorization: Bearer sk-xxx                      │                      ┃
+┃  │  OpenAI-Beta: assistants=v2                        │                      ┃
+┃  │  Content-Type: application/json                    │                      ┃
+┃  │                                                    │                      ┃
+┃  │  Body:                                             │                      ┃
+┃  │  {                                                 │                      ┃
+┃  │    "file_id": "file-abc123xyz",                   │                      ┃
+┃  │    "chunking_strategy": { "type": "auto" },       │                      ┃
+┃  │    "attributes": {                ✨ INCLUDED     │                      ┃
+┃  │      "fileId": "file-abc123xyz",                  │                      ┃
+┃  │      "chatbotId": "chatbot_123",                  │                      ┃
+┃  │      "sessionId": "session_456",                  │                      ┃
+┃  │      "uploadedAt": "1707385649123"                │                      ┃
+┃  │    }                                               │                      ┃
+┃  │  }                                                 │                      ┃
+┃  └────────────────────────────────────────────────────┘                      ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃         STEP 7: LINE 533 - SEND REQUEST TO OPENAI                               ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃    532 |            @SuppressWarnings("unchecked")                             ┃
+┃    533 |            Map<String, Object> response =                            ┃
+┃        |                restTemplate.postForObject(url, entity, Map.class);   ┃
+┃        |                                         ↑     ↑                      ┃
+┃        |                                    url   entity with metadata        ┃
+┃        |                                                 SENT HERE! ✨         ┃
+┃        |                                                                        ┃
+┃  What happens:                                                                  ┃
+┃  1. restTemplate.postForObject() makes HTTP POST request                      ┃
+┃  2. Sends to: /v1/vector_stores/{id}/files                                   ┃
+┃  3. Includes: requestBody with "attributes" field                             ┃
+┃  4. OpenAI receives: fileId and other metadata ✨                            ┃
+┃  5. OpenAI stores: metadata with the vector store file                        ┃
+┃  6. Returns: response with vectorStoreFileId                                  ┃
+┃                                                                                  ┃
+┃  Response from OpenAI:                                                          ┃
+┃  {                                                                              ┃
+┃    "id": "vs_file_001",                ← vectorStoreFileId                     ┃
+┃    "object": "vector_store.file",                                              ┃
+┃    "created_at": 1707385649,                                                   ┃
+┃    "vector_store_id": "vs_abc123",                                            ┃
+┃    "status": "completed",                                                      ┃
+┃    "file_id": "file-abc123xyz",                                               ┃
+┃    "attributes": {                    ← METADATA STORED ✨                    ┃
+┃      "fileId": "file-abc123xyz",                                              ┃
+┃      "chatbotId": "chatbot_123",                                              ┃
+┃      "sessionId": "session_456",                                              ┃
+┃      "uploadedAt": "1707385649123"                                            ┃
+┃    }                                                                            ┃
+┃  }                                                                              ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+════════════════════════════════════════════════════════════════════════════════════
+
+SUMMARY - WHERE METADATA IS ADDED:
+
+Location:  Line 516 in requestBody.put("attributes", attributes);
+Sent to:   Line 533 via restTemplate.postForObject(url, entity, Map.class);
+
+The metadata (fileId, chatbotId, sessionId, uploadedAt) flows:
+
+Step 1:  Created at line 492        (empty map)
+Step 2:  Populated at lines 495-498  (add default attributes including fileId)
+Step 3:  Merged at lines 500-514    (add custom attributes if provided)
+Step 4:  Added to request at line 516 (put in requestBody as "attributes")
+Step 5:  Sent to OpenAI at line 533  (HTTP POST with metadata)
+Step 6:  Stored by OpenAI           (returns response with metadata)
+
+════════════════════════════════════════════════════════════════════════════════════
+
+KEY CODE SNIPPETS:
+
+Line 492:  Map<String, Object> attributes = new HashMap<>();
+Line 495:  attributes.put("fileId", fileId);              ← fileId stored here
+Line 516:  requestBody.put("attributes", attributes);      ← added to request
+Line 533:  restTemplate.postForObject(url, entity, ...);   ← sent to OpenAI
+
+════════════════════════════════════════════════════════════════════════════════════
+
+FILE: src/main/java/net/ai/chatbot/service/n8n/AttachmentSaveService.java
+METHOD: addToVectorStoreAndGetIds()
+LINES: 491-533
+
+STATUS: ✅ IMPLEMENTATION CONFIRMED
+

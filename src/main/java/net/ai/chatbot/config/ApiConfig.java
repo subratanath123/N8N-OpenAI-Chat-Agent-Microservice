@@ -43,7 +43,7 @@ public class ApiConfig {
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> cors.configurationSource(corsConfigurationSource(domainService)))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/v1/api/n8n/anonymous/**", "/v1/api/public/**")
+                        .requestMatchers("/api/**","/v1/api/n8n/anonymous/**","/v1/api/public/**")
                         .permitAll()
                         .anyRequest().authenticated()
                 )

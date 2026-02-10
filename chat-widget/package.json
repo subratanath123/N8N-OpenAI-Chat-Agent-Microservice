@@ -1,0 +1,27 @@
+{
+  "name": "@your-org/chat-widget",
+  "version": "1.0.0",
+  "description": "File Attachment Chat Widget for Multimodal Chat API",
+  "main": "dist/chat-widget.js",
+  "types": "dist/chat-widget.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "bundle": "esbuild src/index.ts --bundle --minify --outfile=dist/chat-widget.min.js --format=iife --global-name=ChatWidget",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "chat",
+    "widget",
+    "attachments",
+    "multimodal",
+    "ai"
+  ],
+  "author": "Your Organization",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "esbuild": "^0.20.0"
+  }
+}
+

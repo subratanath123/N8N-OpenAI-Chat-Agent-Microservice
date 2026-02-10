@@ -26,6 +26,9 @@ public class AnonymousUserChatN8NController {
     @Value("${n8n.webhook.knowledgebase.chat.url}")
     private String webhookUrl;
 
+    @Value("${n8n.webhook.knowledgebase.multimodal.chat.url}")
+    private String multimodalWebhookUrl;
+
     /**
      * Send a single message to N8N workflow
      */
@@ -34,7 +37,11 @@ public class AnonymousUserChatN8NController {
 
         ChatBot chatBot = chatBotService.getChatBot(message.getChatbotId());
 
-        N8NChatResponse<Object> response = n8nService.sendMessage(chatBot, message, webhookUrl);
+        N8NChatResponse<Object> response = n8nService.sendMessage(chatBot, message,
+                message.getFileAttachments() != null && !message.getFileAttachments().isEmpty()
+                        ? multimodalWebhookUrl
+                        : webhookUrl
+        );
 
         return ResponseEntity.ok(response);
     }

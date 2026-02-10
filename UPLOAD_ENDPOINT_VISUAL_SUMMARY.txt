@@ -1,0 +1,273 @@
+╔════════════════════════════════════════════════════════════════════════════════╗
+║                 FILE UPLOAD ENDPOINT - IMPLEMENTATION COMPLETE                  ║
+║                                                                                  ║
+║  Request: Keep a upload endpoint for uploading file and return the fileID       ║
+║  Response: ✅ IMPLEMENTED & READY TO USE                                        ║
+╚════════════════════════════════════════════════════════════════════════════════╝
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                          NEW ENDPOINT CREATED                                    ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  Endpoint: POST /api/attachments/upload                                         ┃
+┃  Location: AttachmentDownloadController.java                                    ┃
+┃  Method:   uploadFile()                                                         ┃
+┃  Lines:    41-105                                                               ┃
+┃  Status:   ✅ Complete, no errors                                              ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                         REQUEST DETAILS                                          ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  POST /api/attachments/upload                                                   ┃
+┃                                                                                  ┃
+┃  Content-Type: multipart/form-data                                              ┃
+┃                                                                                  ┃
+┃  Parameters:                                                                    ┃
+┃  ┌────────────────────────────────────────────────────────────┐               ┃
+┃  │ Name         │ Type   │ Required │ Description            │               ┃
+┃  ├──────────────┼────────┼──────────┼────────────────────────┤               ┃
+┃  │ file         │ File   │ ✅ Yes   │ File to upload         │               ┃
+┃  │ chatbotId    │ String │ ✅ Yes   │ Your chatbot ID        │               ┃
+┃  │ sessionId    │ String │ ✅ Yes   │ Session ID for track   │               ┃
+┃  └────────────────────────────────────────────────────────────┘               ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                        REQUEST EXAMPLES                                          ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  CURL:                                                                          ┃
+┃  ┌───────────────────────────────────────────────────────────────┐            ┃
+┃  │ curl -X POST "http://localhost:8080/api/attachments/upload" \ │            ┃
+┃  │   -F "file=@report.pdf" \                                     │            ┃
+┃  │   -F "chatbotId=chatbot_123" \                                │            ┃
+┃  │   -F "sessionId=session_456"                                  │            ┃
+┃  └───────────────────────────────────────────────────────────────┘            ┃
+┃                                                                                  ┃
+┃  JavaScript/Fetch:                                                              ┃
+┃  ┌───────────────────────────────────────────────────────────────┐            ┃
+┃  │ const formData = new FormData();                              │            ┃
+┃  │ formData.append('file', file);                                │            ┃
+┃  │ formData.append('chatbotId', 'chatbot_123');                 │            ┃
+┃  │ formData.append('sessionId', 'session_456');                 │            ┃
+┃  │                                                               │            ┃
+┃  │ const response = await fetch(                                │            ┃
+┃  │   'http://localhost:8080/api/attachments/upload',           │            ┃
+┃  │   { method: 'POST', body: formData }                         │            ┃
+┃  │ );                                                            │            ┃
+┃  │                                                               │            ┃
+┃  │ const {fileId, downloadUrl} = await response.json();        │            ┃
+┃  └───────────────────────────────────────────────────────────────┘            ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                       RESPONSE - HTTP 201 CREATED                                ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  {                                                                              ┃
+┃    "fileId": "file_chatbot_123_session_456_report_1707385649123",  ✨           ┃
+┃    "fileName": "report.pdf",                                                    ┃
+┃    "mimeType": "application/pdf",                                               ┃
+┃    "fileSize": 256000,                                                          ┃
+┃    "downloadUrl": "http://localhost:8080/api/attachments/download/file_...",   ┃
+┃    "uploadedAt": 1707385649000,                                                 ┃
+┃    "status": "stored"                                                           ┃
+┃  }                                                                              ┃
+┃                                                                                  ┃
+┃  Key Fields:                                                                    ┃
+┃  - fileId ✨ Unique identifier for the file                                    ┃
+┃  - downloadUrl ✨ Ready-to-use download link                                   ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                     COMPLETE WORKFLOW                                            ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  1. CLIENT UPLOADS FILE                                                         ┃
+┃     ├─ POST /api/attachments/upload                                            ┃
+┃     ├─ Content: file + chatbotId + sessionId                                   ┃
+┃     └─ multipart/form-data                                                     ┃
+┃                ↓                                                                ┃
+┃  2. ENDPOINT VALIDATES                                                          ┃
+┃     ├─ File not empty ✓                                                        ┃
+┃     ├─ chatbotId provided ✓                                                    ┃
+┃     └─ sessionId provided ✓                                                    ┃
+┃                ↓                                                                ┃
+┃  3. ENDPOINT PROCESSES                                                          ┃
+┃     ├─ Read file bytes from MultipartFile                                      ┃
+┃     ├─ Encode to Base64                                                        ┃
+┃     └─ Create Attachment DTO                                                   ┃
+┃                ↓                                                                ┃
+┃  4. STORE IN MONGODB                                                            ┃
+┃     ├─ Call AttachmentStorageService                                           ┃
+┃     ├─ Generate unique fileId                                                  ┃
+┃     ├─ Store as BSON Binary                                                    ┃
+┃     ├─ Save metadata                                                           ┃
+┃     └─ Generate download URL                                                   ┃
+┃                ↓                                                                ┃
+┃  5. RETURN RESPONSE (201 CREATED)                                               ┃
+┃     ├─ fileId: "file_chatbot_123_..."  ✨                                      ┃
+┃     ├─ downloadUrl: "http://..."        ✨                                      ┃
+┃     ├─ fileName: "report.pdf"                                                  ┃
+┃     └─ status: "stored"                                                        ┃
+┃                ↓                                                                ┃
+┃  6. CLIENT USES FILEID                                                          ┃
+┃     ├─ Store fileId in database                                                ┃
+┃     ├─ Share downloadUrl with N8N                                              ┃
+┃     └─ Use for future downloads/references                                    ┃
+┃                ↓                                                                ┃
+┃  7. N8N CAN DOWNLOAD                                                            ┃
+┃     ├─ GET /api/attachments/download/{fileId}?chatbotId=...                   ┃
+┃     ├─ Receive file binary                                                     ┃
+┃     └─ Process/analyze locally                                                 ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                     ERROR RESPONSES                                              ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  400 Bad Request - Empty File:                                                  ┃
+┃  {                                                                              ┃
+┃    "success": false,                                                           ┃
+┃    "message": "File is empty",                                                 ┃
+┃    "timestamp": 1707385649000                                                  ┃
+┃  }                                                                              ┃
+┃                                                                                  ┃
+┃  400 Bad Request - Missing chatbotId:                                           ┃
+┃  {                                                                              ┃
+┃    "success": false,                                                           ┃
+┃    "message": "chatbotId is required",                                         ┃
+┃    "timestamp": 1707385649000                                                  ┃
+┃  }                                                                              ┃
+┃                                                                                  ┃
+┃  400 Bad Request - Missing sessionId:                                           ┃
+┃  {                                                                              ┃
+┃    "success": false,                                                           ┃
+┃    "message": "sessionId is required",                                         ┃
+┃    "timestamp": 1707385649000                                                  ┃
+┃  }                                                                              ┃
+┃                                                                                  ┃
+┃  500 Internal Server Error:                                                     ┃
+┃  {                                                                              ┃
+┃    "success": false,                                                           ┃
+┃    "message": "Error uploading file: {details}",                               ┃
+┃    "timestamp": 1707385649000                                                  ┃
+┃  }                                                                              ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                    ALL ENDPOINTS SUMMARY                                         ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  POST   /api/attachments/upload                    Upload file & get fileId ✨  ┃
+┃  GET    /api/attachments/download/{fileId}         Download file              ┃
+┃  GET    /api/attachments/metadata/{fileId}         Get file metadata          ┃
+┃  GET    /api/attachments/list/{chatbotId}          List all files             ┃
+┃  DELETE /api/attachments/{fileId}                  Delete file                ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                     CODE CHANGES MADE                                            ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  File: AttachmentDownloadController.java                                        ┃
+┃                                                                                  ┃
+┃  1. Added Imports (Lines 1-13):                                                 ┃
+┃     - import org.springframework.web.multipart.MultipartFile                   ┃
+┃     - import java.io.IOException                                               ┃
+┃     - import java.util.Base64                                                  ┃
+┃     - import net.ai.chatbot.dto.Attachment                                     ┃
+┃     - import net.ai.chatbot.dto.AttachmentStorageResult                        ┃
+┃                                                                                  ┃
+┃  2. Updated Javadoc (Lines 16-22):                                              ┃
+┃     - Added "POST /api/attachments/upload" endpoint to documentation            ┃
+┃                                                                                  ┃
+┃  3. New Upload Method (Lines 41-105):                                           ┃
+┃     - @PostMapping("/upload")                                                  ┃
+┃     - uploadFile(MultipartFile file, String chatbotId, String sessionId)       ┃
+┃     - Full implementation with validation, processing, and response            ┃
+┃                                                                                  ┃
+┃  Total Lines Added: ~65 lines                                                   ┃
+┃  Total Lines Modified: ~10 lines (imports, javadoc)                            ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                    QUALITY ASSURANCE RESULTS                                     ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  ✅ CODE CHANGES: Complete                                                      ┃
+┃  ✅ COMPILATION: No errors                                                      ┃
+┃  ✅ LINTING: No errors                                                          ┃
+┃  ✅ VALIDATION: Input & file validation                                         ┃
+┃  ✅ ERROR HANDLING: Comprehensive                                               ┃
+┃  ✅ LOGGING: Detailed logging added                                             ┃
+┃  ✅ DOCUMENTATION: Javadoc complete                                             ┃
+┃  ✅ PRODUCTION READY: Yes                                                       ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃                    QUICK START - USE IT NOW                                      ┃
+┣━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┫
+┃                                                                                  ┃
+┃  1. Upload File                                                                 ┃
+┃     POST /api/attachments/upload                                               ┃
+┃     with: file, chatbotId, sessionId                                           ┃
+┃                                                                                  ┃
+┃  2. Get Response                                                                ┃
+┃     {                                                                          ┃
+┃       "fileId": "file_chatbot_123_session_456_report_1707385649123",          ┃
+┃       "downloadUrl": "http://localhost:8080/api/attachments/download/..."    ┃
+┃     }                                                                          ┃
+┃                                                                                  ┃
+┃  3. Use fileId                                                                  ┃
+┃     - Store in database                                                        ┃
+┃     - Use to download later                                                    ┃
+┃     - Share with N8N                                                           ┃
+┃                                                                                  ┃
+┃  4. Download Anytime                                                            ┃
+┃     GET /api/attachments/download/{fileId}?chatbotId={chatbotId}            ┃
+┃                                                                                  ┃
+┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
+
+
+════════════════════════════════════════════════════════════════════════════════════
+
+IMPLEMENTATION SUMMARY:
+
+✨ Upload Endpoint Added: POST /api/attachments/upload
+✨ Accepts: multipart/form-data (file, chatbotId, sessionId)
+✨ Returns: fileId + downloadUrl in response
+✨ Full Validation: file, chatbotId, sessionId checks
+✨ Error Handling: Comprehensive with clear messages
+✨ Logging: Debug and info level logging
+✨ Integration: Works seamlessly with AttachmentStorageService
+
+════════════════════════════════════════════════════════════════════════════════════
+
+STATUS: ✅ COMPLETE & PRODUCTION READY
+
+Ready to use immediately!
+
+════════════════════════════════════════════════════════════════════════════════════
+

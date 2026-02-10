@@ -1,0 +1,162 @@
+{
+  "info": {
+    "_postman_id": "file-attachment-api-collection",
+    "name": "File Attachment API",
+    "description": "API for uploading, downloading, and managing file attachments",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Upload File",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            },
+            {
+              "key": "chatbotId",
+              "value": "chatbot_123",
+              "type": "text"
+            },
+            {
+              "key": "sessionId",
+              "value": "session_456",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://localhost:8080/api/attachments/upload",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "attachments",
+            "upload"
+          ]
+        },
+        "description": "Upload a file and get fileId and download URL"
+      },
+      "response": []
+    },
+    {
+      "name": "Download File",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/attachments/download/file_chatbot_123_session_456_document_1707385649123?chatbotId=chatbot_123",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "attachments",
+            "download",
+            "file_chatbot_123_session_456_document_1707385649123"
+          ],
+          "query": [
+            {
+              "key": "chatbotId",
+              "value": "chatbot_123"
+            }
+          ]
+        },
+        "description": "Download a file using its fileId"
+      },
+      "response": []
+    },
+    {
+      "name": "Get File Metadata",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/attachments/metadata/file_chatbot_123_session_456_document_1707385649123?chatbotId=chatbot_123",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "attachments",
+            "metadata",
+            "file_chatbot_123_session_456_document_1707385649123"
+          ],
+          "query": [
+            {
+              "key": "chatbotId",
+              "value": "chatbot_123"
+            }
+          ]
+        },
+        "description": "Get file metadata without downloading content"
+      },
+      "response": []
+    },
+    {
+      "name": "List All Files",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/attachments/list/chatbot_123",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "attachments",
+            "list",
+            "chatbot_123"
+          ]
+        },
+        "description": "List all uploaded files for a chatbot"
+      },
+      "response": []
+    },
+    {
+      "name": "Delete File",
+      "request": {
+        "method": "DELETE",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8080/api/attachments/file_chatbot_123_session_456_document_1707385649123?chatbotId=chatbot_123",
+          "protocol": "http",
+          "host": [
+            "localhost"
+          ],
+          "port": "8080",
+          "path": [
+            "api",
+            "attachments",
+            "file_chatbot_123_session_456_document_1707385649123"
+          ],
+          "query": [
+            {
+              "key": "chatbotId",
+              "value": "chatbot_123"
+            }
+          ]
+        },
+        "description": "Delete a file from the system"
+      },
+      "response": []
+    }
+  ]
+}
+

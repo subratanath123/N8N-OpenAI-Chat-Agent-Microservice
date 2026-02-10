@@ -27,5 +27,4 @@ public class PreAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
 
     }
-
 }

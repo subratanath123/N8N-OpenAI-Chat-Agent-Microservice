@@ -155,3 +155,9 @@ After this fix, when you:
 The tool schema now includes `inputType` for all properties, making it fully compatible with n8n's MCP Client Tool node.
 
 
+
+
+
+
+
+

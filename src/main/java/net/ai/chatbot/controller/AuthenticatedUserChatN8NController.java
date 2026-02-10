@@ -7,7 +7,6 @@ import net.ai.chatbot.dto.n8n.N8NChatResponse;
 import net.ai.chatbot.entity.ChatBot;
 import net.ai.chatbot.service.aichatbot.ChatBotService;
 import net.ai.chatbot.service.n8n.GenericN8NService;
-import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
@@ -15,6 +14,11 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+/**
+ * Authenticated user chat endpoint for N8N integration
+ * Supports both text messages and file attachments
+ * Requires authentication context
+ */
 @Slf4j
 @RestController
 @CrossOrigin(originPatterns = "*", allowCredentials = "true", allowedHeaders = "*")
@@ -30,17 +34,8 @@ public class AuthenticatedUserChatN8NController {
     @Value("${n8n.webhook.knowledgebase.chat.url}")
     private String webhookUrl;
 
-    /**
-     * Get session ID from authentication context or return default
-     */
-    private String getSessionId() {
-        try {
-            return AuthUtils.getEmail();
-        } catch (Exception e) {
-            log.warn("Could not get email from authentication context, using default session ID");
-            return "default_session_" + System.currentTimeMillis();
-        }
-    }
+    @Value("${n8n.webhook.knowledgebase.multimodal.chat.url}")
+    private String multimodalWebhookUrl;
 
     @PostMapping("/chatHistory/{chatbotId}")
     public ResponseEntity<List<UserChatHistory>> getConversationList(@PathVariable String chatbotId) {
@@ -66,7 +61,11 @@ public class AuthenticatedUserChatN8NController {
 
         ChatBot chatBot = chatBotService.getChatBot(message.getChatbotId());
 
-        N8NChatResponse<Object> response = n8nService.sendMessage(chatBot, message, webhookUrl);
+        N8NChatResponse<Object> response = n8nService.sendMessage(chatBot, message,
+                message.getFileAttachments() != null && !message.getFileAttachments().isEmpty()
+                        ? multimodalWebhookUrl
+                        : webhookUrl
+        );
 
         return ResponseEntity.ok(response);
     }

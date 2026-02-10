@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat Widget Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            width: 100%;
+            max-width: 600px;
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 8px;
+        }
+
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .chat-area {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f9fafb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .message {
+            margin-bottom: 16px;
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message.system {
+            justify-content: center;
+            text-align: center;
+        }
+
+        .message-bubble {
+            max-width: 70%;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        .message.ai .message-bubble {
+            background: #e5e7eb;
+            color: #1f2937;
+        }
+
+        .message.user .message-bubble {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .message.system .message-bubble {
+            background: #fef3c7;
+            color: #92400e;
+            font-size: 12px;
+            max-width: 90%;
+        }
+
+        .input-area {
+            padding: 20px;
+            background: white;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        input[type="text"],
+        input[type="file"] {
+            padding: 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: inherit;
+        }
+
+        input[type="text"] {
+            flex: 1;
+        }
+
+        input[type="file"] {
+            flex: 1;
+        }
+
+        button {
+            padding: 12px 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 14px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 16px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .file-info {
+            font-size: 12px;
+            color: #6b7280;
+            padding: 8px 0;
+        }
+
+        .attachments {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+
+        .attachment-tag {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .attachment-tag button {
+            background: none;
+            border: none;
+            color: #1e40af;
+            cursor: pointer;
+            padding: 0;
+            margin-left: 4px;
+            font-weight: bold;
+        }
+
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .success {
+            background: #dcfce7;
+            color: #166534;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 13px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #667eea;
+            animation: pulse 1.5s infinite;
+            margin-right: 4px;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .config-panel {
+            background: #f3f4f6;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            font-size: 12px;
+        }
+
+        .config-panel p {
+            margin: 4px 0;
+            word-break: break-all;
+        }
+
+        .label {
+            font-weight: 600;
+            color: #4b5563;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>💬 Chat Widget Demo</h1>
+            <p>Send messages and attachments to your chatbot</p>
+        </div>
+
+        <div class="chat-area" id="chatArea">
+            <div class="message system">
+                <div class="message-bubble">
+                    👋 Welcome! Configure your API and chatbot ID, then start chatting.
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="config-panel">
+                <p><span class="label">Bot ID:</span> <span id="botIdDisplay">bot-123</span></p>
+                <p><span class="label">Session:</span> <span id="sessionIdDisplay">Loading...</span></p>
+                <p><span class="label">API:</span> <span id="apiDisplay">http://localhost:8080/v1/api/n8n/multimodal</span></p>
+            </div>
+
+            <div id="messageArea"></div>
+
+            <div class="input-group">
+                <input type="text" 
+                       id="messageInput" 
+                       placeholder="Type your message..."
+                       onkeypress="handleKeyPress(event)">
+                <button onclick="sendMessage()" id="sendBtn">Send</button>
+            </div>
+
+            <div class="input-group">
+                <input type="file" 
+                       id="fileInput" 
+                       multiple
+                       accept=".pdf,.jpg,.png,.doc,.docx,.xlsx,.txt">
+                <button onclick="uploadFile()">Upload</button>
+            </div>
+
+            <div class="file-info" id="fileInfo"></div>
+            <div class="attachments" id="attachmentsList"></div>
+        </div>
+    </div>
+
+    <script src="dist/index.js"></script>
+    <script>
+        // Initialize chat widget
+        let chatWidget;
+        let selectedFiles = [];
+
+        function initializeWidget() {
+            const chatbotId = 'bot-123'; // Change this to your chatbot ID
+            const apiBaseUrl = 'http://localhost:8080/v1/api/n8n/multimodal';
+
+            chatWidget = new ChatWidget({
+                chatbotId: chatbotId,
+                apiBaseUrl: apiBaseUrl
+            });
+
+            // Update UI with session info
+            document.getElementById('botIdDisplay').textContent = chatbotId;
+            document.getElementById('sessionIdDisplay').textContent = chatWidget.getSessionId();
+
+            addSystemMessage('✅ Widget initialized successfully!');
+        }
+
+        function handleKeyPress(event) {
+            if (event.key === 'Enter' && !event.shiftKey) {
+                event.preventDefault();
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const message = messageInput.value.trim();
+
+            if (!message && selectedFiles.length === 0) {
+                addSystemMessage('⚠️ Please enter a message or select a file');
+                return;
+            }
+
+            if (!chatWidget) {
+                addSystemMessage('❌ Widget not initialized');
+                return;
+            }
+
+            // Disable input
+            messageInput.disabled = true;
+            document.getElementById('sendBtn').disabled = true;
+
+            try {
+                // Convert selected files to File objects if they exist
+                let attachments = [];
+                if (selectedFiles.length > 0) {
+                    for (const file of selectedFiles) {
+                        attachments.push(file);
+                    }
+                }
+
+                addUserMessage(message, attachments);
+
+                // Send message
+                const response = await chatWidget.sendMessage({
+                    message: message,
+                    attachments: []  // Attachments are sent via upload endpoint
+                });
+
+                if (response.success) {
+                    addAIMessage(response.result || 'Response received');
+                    if (response.vectorIdMap) {
+                        addSystemMessage(`📎 Files referenced: ${Object.keys(response.vectorIdMap).join(', ')}`);
+                    }
+                } else {
+                    addSystemMessage(`❌ Error: ${response.error}`);
+                }
+
+                messageInput.value = '';
+                selectedFiles = [];
+                updateFileInfo();
+
+            } catch (error) {
+                addSystemMessage(`❌ Error: ${error.message}`);
+            } finally {
+                messageInput.disabled = false;
+                document.getElementById('sendBtn').disabled = false;
+                messageInput.focus();
+            }
+        }
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            const files = Array.from(fileInput.files);
+
+            if (files.length === 0) {
+                addSystemMessage('⚠️ Please select at least one file');
+                return;
+            }
+
+            if (!chatWidget) {
+                addSystemMessage('❌ Widget not initialized');
+                return;
+            }
+
+            document.getElementById('sendBtn').disabled = true;
+
+            try {
+                for (const file of files) {
+                    addSystemMessage(`📤 Uploading ${file.name}...`);
+                    const response = await chatWidget.uploadFile(file);
+
+                    if (response.success) {
+                        selectedFiles.push(file);
+                        addSystemMessage(`✅ ${file.name} uploaded successfully (ID: ${response.result})`);
+                    } else {
+                        addSystemMessage(`❌ Failed to upload ${file.name}: ${response.error}`);
+                    }
+                }
+
+                updateFileInfo();
+                fileInput.value = '';
+
+            } catch (error) {
+                addSystemMessage(`❌ Error: ${error.message}`);
+            } finally {
+                document.getElementById('sendBtn').disabled = false;
+            }
+        }
+
+        function updateFileInfo() {
+            const fileInfoDiv = document.getElementById('fileInfo');
+            const attachmentsDiv = document.getElementById('attachmentsList');
+
+            if (selectedFiles.length === 0) {
+                fileInfoDiv.textContent = '';
+                attachmentsDiv.innerHTML = '';
+                return;
+            }
+
+            fileInfoDiv.textContent = `${selectedFiles.length} file(s) selected`;
+
+            attachmentsDiv.innerHTML = selectedFiles.map((file, idx) => `
+                <div class="attachment-tag">
+                    📎 ${file.name}
+                    <button onclick="removeFile(${idx})">×</button>
+                </div>
+            `).join('');
+        }
+
+        function removeFile(index) {
+            selectedFiles.splice(index, 1);
+            updateFileInfo();
+        }
+
+        function addUserMessage(text, attachments) {
+            const chatArea = document.getElementById('chatArea');
+            let attachmentInfo = '';
+
+            if (attachments.length > 0) {
+                attachmentInfo = `<div class="file-info">${attachments.length} file(s) attached</div>`;
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message user';
+            messageDiv.innerHTML = `
+                <div class="message-bubble">
+                    ${text}
+                    ${attachmentInfo}
+                </div>
+            `;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function addAIMessage(text) {
+            const chatArea = document.getElementById('chatArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ai';
+            messageDiv.innerHTML = `
+                <div class="message-bubble">${text}</div>
+            `;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        function addSystemMessage(text) {
+            const chatArea = document.getElementById('chatArea');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message system';
+            messageDiv.innerHTML = `
+                <div class="message-bubble">${text}</div>
+            `;
+            chatArea.appendChild(messageDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        }
+
+        // Initialize on page load
+        window.onload = () => {
+            initializeWidget();
+            document.getElementById('messageInput').focus();
+        };
+    </script>
+</body>
+</html>
+
