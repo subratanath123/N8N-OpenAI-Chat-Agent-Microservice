@@ -5,10 +5,10 @@ import net.ai.chatbot.dto.Attachment;
 import net.ai.chatbot.dto.AttachmentStorageResult;
 import net.ai.chatbot.dto.FileMetadata;
 import org.bson.Document;
-import org.bson.types.Binary;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.query.Criteria;
+import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -78,26 +78,20 @@ public class AttachmentStorageService {
     public byte[] getFileContent(String fileId, String chatbotId) {
         log.debug("Retrieving file content: fileId={}, chatbotId={}", fileId, chatbotId);
 
-        String collectionName = "attachments_" + chatbotId;
-        Document fileDoc = mongoTemplate.getCollection(collectionName)
-                .find(new Document("fileId", fileId))
-                .first();
+        Query query = new Query().addCriteria(
+                Criteria.where("_id").is(fileId)
+                        .and("chatbotId").is(chatbotId)
+        );
 
-        if (fileDoc == null) {
+        Attachment attachment = mongoTemplate.findOne(query, Attachment.class);
+
+        if (attachment == null || attachment.getData() == null) {
             log.warn("File not found: fileId={}, chatbotId={}", fileId, chatbotId);
             return null;
         }
 
-        Binary binaryContent = fileDoc.get("fileContent", Binary.class);
-        if (binaryContent == null) {
-            log.warn("File content not found for fileId: {}", fileId);
-            return null;
-        }
-
-        byte[] content = binaryContent.getData();
-        log.info("File retrieved successfully: fileId={}, size={} bytes", fileId, content.length);
-
-        return content;
+        log.info("File retrieved successfully: fileId={}, size={} bytes", fileId, attachment.getData().length);
+        return attachment.getData();
     }
 
     /**
@@ -110,21 +104,37 @@ public class AttachmentStorageService {
     public FileMetadata getFileMetadata(String fileId, String chatbotId) {
         log.debug("Retrieving file metadata: fileId={}, chatbotId={}", fileId, chatbotId);
 
-        Document fileDoc = mongoTemplate.getCollection("attachment")
-                .find(new Document("fileId", fileId))
-                .first();
+        Query query = new Query().addCriteria(
+                new Criteria().andOperator(
+                        Criteria.where("_id").in(fileId)
+                                .and("chatbotId").is(chatbotId)
+                )
+        );
+        // Project only the _id and the entire messages array
+        query.fields()
+                .include("_id")
+                .include("name")
+                .include("type")
+                .include("chatbotId")
+                .include("name")
+                .include("size")
+                .include("length")
+                .include("uploadedAt")
+                .include("data");
 
-        if (fileDoc == null) {
-            log.warn("File metadata not found: fileId={}", fileId);
+        Attachment attachment = mongoTemplate.findOne(query, Attachment.class);
+
+        if (attachment == null) {
+            log.warn("File attachment not found: fileId={}", fileId);
             return null;
         }
 
         return FileMetadata.builder()
-                .fileId((String) fileDoc.get("id"))
-                .fileName((String) fileDoc.get("name"))
-                .mimeType((String) fileDoc.get("type"))
-                .fileSize(((Number) fileDoc.get("size")).longValue())
-                .uploadedAt(((Date) fileDoc.get("uploadedAt")).getTime())
+                .fileId(attachment.getId())
+                .fileName(attachment.getName())
+                .mimeType(attachment.getType())
+                .fileSize(attachment.getSize())
+                .uploadedAt(attachment.getUploadedAt().getTime())
                 .status("stored")
                 .build();
     }
