@@ -4,7 +4,10 @@ import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import nonapi.io.github.classgraph.json.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.util.Date;
 
 @Document
 @Data
@@ -12,19 +15,15 @@ import org.springframework.data.mongodb.core.mapping.Document;
 @NoArgsConstructor
 @AllArgsConstructor
 public class Attachment {
+    @Id
+    private String id;
+    private String chatbotId;
     private String name;           // Original filename
-    private Long size;             // File size in bytes
+    private long size;             // File size in bytes
+    private long length;             // File size in bytes
     private String type;           // MIME type (e.g., "application/pdf")
-    private String data;           // Base64 encoded content
-    private String base64;         // Legacy support for base64 field
-    
-    /**
-     * Get the file data, checking both data and base64 fields
-     */
-    public String getFileData() {
-        return data != null ? data : base64;
-    }
-    
+    private Date uploadedAt;
+    private byte[] data;           // Base64 encoded content
     /**
      * Get MIME type with sensible defaults
      */

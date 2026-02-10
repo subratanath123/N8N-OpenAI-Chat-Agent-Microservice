@@ -271,12 +271,8 @@ public class AttachmentSaveService {
         if (attachment.getName() == null || attachment.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Attachment name is required");
         }
-        
-        if (attachment.getFileData() == null || attachment.getFileData().isEmpty()) {
-            throw new IllegalArgumentException("Attachment data is required");
-        }
-        
-        if (attachment.getSize() == null || attachment.getSize() <= 0) {
+
+        if (attachment.getSize() <= 0) {
             throw new IllegalArgumentException("Invalid file size");
         }
         
@@ -335,7 +331,7 @@ public class AttachmentSaveService {
         Path filePath = dirPath.resolve(sanitizedName);
         
         // Decode Base64 and write to file
-        byte[] fileData = Base64.getDecoder().decode(attachment.getFileData());
+        byte[] fileData = Base64.getDecoder().decode(attachment.getData());
         Files.write(filePath, fileData);
         
         log.debug("File saved to disk: {}", filePath);
