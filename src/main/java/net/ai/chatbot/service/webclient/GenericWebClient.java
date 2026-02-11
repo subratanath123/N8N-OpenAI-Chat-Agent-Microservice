@@ -27,7 +27,7 @@ import static java.util.Optional.empty;
 public class GenericWebClient {
 
     private final WebClient.Builder webClientBuilder;
-    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(60);
+    private static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(60 * 5);
 
     public GenericWebClient(WebClient.Builder webClientBuilder) {
         this.webClientBuilder = webClientBuilder;
