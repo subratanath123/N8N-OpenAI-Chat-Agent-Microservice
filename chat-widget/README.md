@@ -246,3 +246,4 @@ For issues or questions, please refer to the main documentation:
 - `MULTIMODAL_CHAT_FRONTEND_SPECIFICATION.md`
 - `MULTIMODAL_CHAT_QUICK_REFERENCE.md`
 
+

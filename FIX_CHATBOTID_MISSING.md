@@ -424,3 +424,4 @@ uploadFileCorrectly();
 **Key Takeaway:** Make sure ALL THREE parameters (file, chatbotId, sessionId) are in the FormData, with correct camelCase names!
 
 
+

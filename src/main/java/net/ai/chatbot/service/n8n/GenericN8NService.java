@@ -76,6 +76,7 @@ public class GenericN8NService<T, R> {
                 headers.put("multimodal-type", "vector-references");
                 headers.put("file-count", String.valueOf(fileAttachments.size()));
                 headers.put("file-ids", fileAttachments.stream().map(FileAttachment::getFileId).collect(Collectors.joining(",")));
+                headers.put("fileType", fileAttachments.stream().map(FileAttachment::getMimeType).collect(Collectors.joining(",")));
             }
 
             // Send as form data (text message only)

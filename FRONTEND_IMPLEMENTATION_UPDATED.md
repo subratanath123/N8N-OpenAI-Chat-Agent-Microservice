@@ -315,3 +315,4 @@ For issues or questions, check:
 - API Documentation: `MULTIMODAL_CHAT_FRONTEND_SPECIFICATION.md`
 - Controller Code: `MultimodalN8NChatController.java`
 
+
