@@ -1,14 +1,20 @@
 package net.ai.chatbot.controller;
 
+import jakarta.validation.Valid;
 import lombok.extern.slf4j.Slf4j;
+import net.ai.chatbot.dto.ChatbotReplyRequest;
+import net.ai.chatbot.dto.ChatbotReplyResponse;
 import net.ai.chatbot.dto.Message;
 import net.ai.chatbot.dto.UserChatHistory;
 import net.ai.chatbot.dto.n8n.N8NChatResponse;
 import net.ai.chatbot.entity.ChatBot;
 import net.ai.chatbot.service.aichatbot.ChatBotService;
+import net.ai.chatbot.service.googlecalendar.ChatbotOwnershipService;
 import net.ai.chatbot.service.n8n.GenericN8NService;
+import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,6 +36,9 @@ public class AuthenticatedUserChatN8NController {
 
     @Autowired
     private ChatBotService chatBotService;
+
+    @Autowired
+    private ChatbotOwnershipService chatbotOwnershipService;
 
     @Value("${n8n.webhook.knowledgebase.chat.url}")
     private String webhookUrl;
@@ -68,6 +77,146 @@ public class AuthenticatedUserChatN8NController {
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    /**
+     * POST /v1/api/n8n/authenticated/chatbot-reply
+     * 
+     * Send a reply on behalf of a chatbot in an existing conversation
+     * Used by admins/managers in the conversation history admin panel
+     * 
+     * @param request ChatbotReplyRequest containing conversationId, chatbotId, message, and role
+     * @return ChatbotReplyResponse with success status and saved message details
+     */
+    @PostMapping("/chatbot-reply")
+    public ResponseEntity<ChatbotReplyResponse> chatbotReply(@Valid @RequestBody ChatbotReplyRequest request) {
+        long timestamp = System.currentTimeMillis();
+        
+        try {
+            // Get authenticated user email
+            String userEmail = AuthUtils.getEmail();
+            if (userEmail == null || userEmail.isBlank()) {
+                log.warn("Unauthenticated request to chatbot-reply endpoint");
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                        .body(ChatbotReplyResponse.error("UNAUTHORIZED", 
+                                "Invalid or expired token", timestamp));
+            }
+            
+            log.info("Chatbot reply request from user: {}, chatbotId: {}, conversationId: {}", 
+                    userEmail, request.getChatbotId(), request.getConversationId());
+            
+            // Validate required fields (additional validation beyond annotations)
+            if (request.getConversationId() == null || request.getConversationId().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ChatbotReplyResponse.error("MISSING_FIELD", 
+                                "conversationId is required", timestamp));
+            }
+            
+            if (request.getChatbotId() == null || request.getChatbotId().trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ChatbotReplyResponse.error("MISSING_FIELD", 
+                                "chatbotId is required", timestamp));
+            }
+            
+            // Validate message
+            String message = request.getMessage();
+            if (message == null || message.trim().isEmpty()) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ChatbotReplyResponse.error("EMPTY_MESSAGE", 
+                                "Message cannot be empty", timestamp));
+            }
+            
+            if (message.length() > 10000) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ChatbotReplyResponse.error("MESSAGE_TOO_LONG", 
+                                "Message exceeds maximum length of 10000 characters", timestamp));
+            }
+            
+            // Validate role
+            if (!"assistant".equals(request.getRole())) {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                        .body(ChatbotReplyResponse.error("INVALID_ROLE", 
+                                "Role must be 'assistant'", timestamp));
+            }
+            
+            // Verify chatbot exists
+            ChatBot chatBot;
+            try {
+                chatBot = chatBotService.getChatBot(request.getChatbotId());
+                if (chatBot == null) {
+                    return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                            .body(ChatbotReplyResponse.error("CHATBOT_NOT_FOUND", 
+                                    "Chatbot not found: " + request.getChatbotId(), timestamp));
+                }
+            } catch (Exception e) {
+                log.error("Error fetching chatbot: {}", e.getMessage());
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ChatbotReplyResponse.error("CHATBOT_NOT_FOUND", 
+                                "Chatbot not found: " + request.getChatbotId(), timestamp));
+            }
+            
+            // Verify user has permission to manage this chatbot (ownership check)
+            try {
+                chatbotOwnershipService.verifyOwnership(request.getChatbotId(), userEmail);
+            } catch (SecurityException e) {
+                log.warn("Permission denied for user {} on chatbot {}", userEmail, request.getChatbotId());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ChatbotReplyResponse.error("INSUFFICIENT_PERMISSIONS", 
+                                "You do not have permission to reply in this conversation", timestamp));
+            } catch (Exception e) {
+                log.error("Error verifying chatbot ownership: {}", e.getMessage());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(ChatbotReplyResponse.error("INSUFFICIENT_PERMISSIONS", 
+                                "You do not have permission to reply in this conversation", timestamp));
+            }
+            
+            // Verify conversation exists and belongs to this chatbot
+            boolean conversationExists = chatBotService.verifyConversationOwnership(
+                    request.getConversationId(), request.getChatbotId());
+            
+            if (!conversationExists) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ChatbotReplyResponse.error("CONVERSATION_NOT_FOUND", 
+                                "Conversation not found: " + request.getConversationId(), timestamp));
+            }
+            
+            // Save admin reply to database
+            UserChatHistory savedMessage;
+            try {
+                savedMessage = chatBotService.saveAdminReply(
+                        request.getConversationId(),
+                        request.getChatbotId(),
+                        message.trim(),
+                        userEmail
+                );
+            } catch (Exception e) {
+                log.error("Failed to save admin reply to database: {}", e.getMessage(), e);
+                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                        .body(ChatbotReplyResponse.error("DATABASE_ERROR", 
+                                "Failed to save message to database", timestamp));
+            }
+            
+            // Build success response
+            ChatbotReplyResponse response = ChatbotReplyResponse.success(
+                    savedMessage.getId(),
+                    request.getConversationId(),
+                    request.getChatbotId(),
+                    message.trim(),
+                    "assistant",
+                    timestamp
+            );
+            
+            log.info("Admin reply saved successfully: messageId={}, conversationId={}", 
+                    savedMessage.getId(), request.getConversationId());
+            
+            return ResponseEntity.ok(response);
+            
+        } catch (Exception e) {
+            log.error("Unexpected error in chatbot-reply endpoint: {}", e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(ChatbotReplyResponse.error("UNEXPECTED_ERROR", 
+                            "An unexpected error occurred", timestamp));
+        }
     }
 
 }

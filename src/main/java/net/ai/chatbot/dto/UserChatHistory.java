@@ -21,10 +21,15 @@ public class UserChatHistory {
     
     private String email;
     private String conversationid;
+    private String chatbotId;
     private String userMessage;
     private Instant createdAt;
     private String aiMessage;
     private String mode;
     private boolean isAnonymous;
+    private String role; // "user" or "assistant"
+    private String senderType; // "user", "bot", "admin_reply"
+    private String adminUserId; // Email of admin who sent reply
+    private String status; // "sent", "delivered", etc.
 
 }

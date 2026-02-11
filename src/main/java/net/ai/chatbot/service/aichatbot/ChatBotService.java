@@ -308,11 +308,119 @@ public class ChatBotService {
         Criteria criteria = Criteria.where("chatbotId").is(chatbotId)
                 .and("conversationid").is(conversationId);
 
-        if (!AuthUtils.isAdmin()) {
-            criteria = criteria.and("email").is(AuthUtils.getEmail());
+        // Only filter by email if user is authenticated and not an admin
+        String userEmail = AuthUtils.getEmail();
+        if (userEmail != null && !AuthUtils.isAdmin()) {
+            criteria = criteria.and("email").is(userEmail);
+            log.debug("Filtering chat history by email: {}", userEmail);
+        } else if (userEmail == null) {
+            log.debug("Public/unauthenticated request - returning all messages in conversation");
+        } else {
+            log.debug("Admin request - returning all messages in conversation");
         }
 
         return mongoTemplate.find(new Query().addCriteria(criteria), UserChatHistory.class);
+    }
+
+    /**
+     * Save admin reply to conversation
+     * Used when admin/manager sends reply on behalf of chatbot
+     */
+    @Transactional
+    public UserChatHistory saveAdminReply(String conversationId, String chatbotId, 
+                                          String message, String adminEmail) {
+        log.info("Saving admin reply to conversation: {}, chatbot: {}, admin: {}", 
+                conversationId, chatbotId, adminEmail);
+        
+        // Get the conversation user's email from existing messages
+        // This ensures the admin reply appears in the user's conversation history
+        String conversationUserEmail = getConversationUserEmail(conversationId, chatbotId);
+        
+        if (conversationUserEmail == null) {
+            log.warn("Could not find user email for conversation: {}, using admin email as fallback", conversationId);
+            conversationUserEmail = adminEmail;
+        }
+        
+        // Generate unique message ID
+        String messageId = "msg_" + System.currentTimeMillis() + "_" + 
+                          UUID.randomUUID().toString().substring(0, 8);
+        
+        // Create UserChatHistory record for admin reply
+        UserChatHistory adminReply = UserChatHistory.builder()
+                .id(messageId)
+                .conversationid(conversationId)
+                .chatbotId(chatbotId)
+                .email(conversationUserEmail) // Use conversation user's email, not admin's
+                .aiMessage(message)
+                .userMessage(null) // No user message for admin replies
+                .role("assistant")
+                .senderType("admin_reply")
+                .adminUserId(adminEmail) // Track who sent the reply
+                .status("sent")
+                .createdAt(java.time.Instant.now())
+                .mode("admin")
+                .isAnonymous(false)
+                .build();
+        
+        // Save to MongoDB
+        UserChatHistory saved = mongoTemplate.save(adminReply);
+        
+        log.info("Admin reply saved successfully: messageId={}, conversationUserEmail={}", 
+                messageId, conversationUserEmail);
+        return saved;
+    }
+    
+    /**
+     * Get the user's email from an existing conversation
+     * Finds the first message in the conversation and returns the email field
+     */
+    private String getConversationUserEmail(String conversationId, String chatbotId) {
+        try {
+            Criteria criteria = Criteria.where("conversationid").is(conversationId)
+                    .and("chatbotId").is(chatbotId);
+            
+            Query query = new Query(criteria);
+            query.limit(1);
+            query.with(Sort.by(Sort.Direction.ASC, "createdAt"));
+            
+            UserChatHistory firstMessage = mongoTemplate.findOne(query, UserChatHistory.class);
+            
+            if (firstMessage != null && firstMessage.getEmail() != null) {
+                log.debug("Found conversation user email: {} for conversation: {}", 
+                         firstMessage.getEmail(), conversationId);
+                return firstMessage.getEmail();
+            }
+            
+            log.warn("No messages found for conversation: {}, chatbot: {}", conversationId, chatbotId);
+            return null;
+            
+        } catch (Exception e) {
+            log.error("Error fetching conversation user email: {}", e.getMessage(), e);
+            return null;
+        }
+    }
+
+    /**
+     * Verify that conversation exists and belongs to the specified chatbot
+     */
+    public boolean verifyConversationOwnership(String conversationId, String chatbotId) {
+        log.debug("Verifying conversation ownership: conversationId={}, chatbotId={}", 
+                 conversationId, chatbotId);
+        
+        Criteria criteria = Criteria.where("conversationid").is(conversationId)
+                .and("chatbotId").is(chatbotId);
+        
+        Query query = new Query(criteria);
+        query.limit(1);
+        
+        boolean exists = mongoTemplate.exists(query, UserChatHistory.class);
+        
+        if (!exists) {
+            log.warn("Conversation not found or does not belong to chatbot: conversationId={}, chatbotId={}", 
+                    conversationId, chatbotId);
+        }
+        
+        return exists;
     }
 
     /**
