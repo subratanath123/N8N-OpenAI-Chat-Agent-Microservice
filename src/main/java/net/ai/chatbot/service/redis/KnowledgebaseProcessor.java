@@ -154,8 +154,8 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
             log.info("Starting Playwright crawl for website: {}", websiteUrl);
             PlaywrightWebsiteCrawler.crawl(websiteUrl,
                     chatBot.getEmail(),
-                    5,
-                    50,
+                    15,
+                    1000,
                     scrappedData ->{
                         n8nWebhookService.submitTextContentToN8nKnowledgebase(
                                 mapToSemanticText(extractStructuredContent(scrappedData.html(), scrappedData.url())),
