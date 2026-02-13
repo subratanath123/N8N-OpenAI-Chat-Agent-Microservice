@@ -1,18 +1,21 @@
 package net.ai.chatbot.mcp.fileconverter.controller;
 
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.ai.chatbot.dto.AttachmentStorageResult;
 import net.ai.chatbot.mcp.fileconverter.service.FileConverterService;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.Base64;
 import java.util.List;
 import java.util.Map;
 
 /**
  * MCP Server for file format conversion.
  * Converts text content to: txt, java, csv, docx, pdf, xlsx
+ * Saves via AttachmentStorageService and returns download link (like AttachmentDownloadController).
  * Uses free libraries: Apache Commons CSV, Apache POI, Apache PDFBox
  * <p>
  * Endpoint: POST /mcp/file-converter (JSON-RPC 2.0)
@@ -26,8 +29,13 @@ public class McpFileConverterRestController {
 
     private final FileConverterService fileConverterService;
 
+    @Value("${app.base-url:}")
+    private String configuredBaseUrl;
+
     @PostMapping
-    public ResponseEntity<Map<String, Object>> handleJsonRpc(@RequestBody Map<String, Object> request) {
+    public ResponseEntity<Map<String, Object>> handleJsonRpc(
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
         String jsonrpc = (String) request.get("jsonrpc");
         String method = (String) request.get("method");
         Object id = request.get("id");
@@ -47,7 +55,7 @@ public class McpFileConverterRestController {
 
         return switch (method) {
             case "tools/list", "tools.list" -> handleToolsList(id);
-            case "tools/call", "tools.call" -> handleToolsCall(id, params);
+            case "tools/call", "tools.call" -> handleToolsCall(id, params, httpRequest);
             case "initialize" -> handleInitialize(id, params);
             default -> ResponseEntity.ok(
                     createJsonRpcError(id, -32601, "Method not found: " + method, null));
@@ -67,6 +75,11 @@ public class McpFileConverterRestController {
         extensionProp.put("description", "Target file extension: txt, java, csv, docx, pdf, xlsx");
         extensionProp.put("inputType", "string");
 
+        Map<String, Object> chatbotIdProp = new java.util.HashMap<>();
+        chatbotIdProp.put("type", "string");
+        chatbotIdProp.put("description", "Chatbot ID for storage (required for download link)");
+        chatbotIdProp.put("inputType", "string");
+
         Map<String, Object> filenameProp = new java.util.HashMap<>();
         filenameProp.put("type", "string");
         filenameProp.put("description", "Optional output filename (without extension)");
@@ -75,23 +88,25 @@ public class McpFileConverterRestController {
         Map<String, Object> properties = new java.util.HashMap<>();
         properties.put("content", contentProp);
         properties.put("extension", extensionProp);
+        properties.put("chatbotId", chatbotIdProp);
         properties.put("filename", filenameProp);
 
         Map<String, Object> inputSchema = new java.util.HashMap<>();
         inputSchema.put("type", "object");
         inputSchema.put("properties", properties);
-        inputSchema.put("required", List.of("content", "extension"));
+        inputSchema.put("required", List.of("content", "extension", "chatbotId"));
 
         Map<String, Object> tool = new java.util.HashMap<>();
         tool.put("name", "convert_content_to_file");
-        tool.put("description", "Convert text content to a file format. Supports: txt, java, csv, docx, pdf, xlsx. Returns base64-encoded file content.");
+        tool.put("description", "Convert text content to a file format. Supports: txt, java, csv, docx, pdf, xlsx. Saves file and returns download link.");
         tool.put("inputSchema", inputSchema);
 
         Map<String, Object> result = Map.of("tools", List.of(tool));
         return ResponseEntity.ok(createJsonRpcSuccess(id, result));
     }
 
-    private ResponseEntity<Map<String, Object>> handleToolsCall(Object id, Map<String, Object> params) {
+    private ResponseEntity<Map<String, Object>> handleToolsCall(Object id, Map<String, Object> params,
+                                                                 HttpServletRequest httpRequest) {
         String toolName = (String) params.get("name");
         @SuppressWarnings("unchecked")
         Map<String, Object> arguments = (Map<String, Object>) params.getOrDefault("arguments", Map.of());
@@ -106,34 +121,44 @@ public class McpFileConverterRestController {
 
         String content = (String) arguments.get("content");
         String extension = (String) arguments.get("extension");
+        String chatbotId = (String) arguments.get("chatbotId");
         String filename = (String) arguments.get("filename");
 
         if (extension == null || extension.isBlank()) {
             return ResponseEntity.ok(
                     createJsonRpcError(id, -32602, "Missing required argument: extension", null));
         }
+        if (chatbotId == null || chatbotId.isBlank()) {
+            return ResponseEntity.ok(
+                    createJsonRpcError(id, -32602, "Missing required argument: chatbotId", null));
+        }
+
+        String baseUrl = configuredBaseUrl;
+        if (baseUrl == null || baseUrl.isBlank()) {
+            baseUrl = buildBaseUrlFromRequest(httpRequest);
+        }
 
         try {
-            byte[] fileBytes = fileConverterService.convert(content, extension, filename);
-            String suggestedFilename = fileConverterService.getSuggestedFilename(extension, filename);
-            String base64Content = Base64.getEncoder().encodeToString(fileBytes);
+            AttachmentStorageResult result = fileConverterService.convertAndStore(
+                    content, extension, filename, chatbotId, baseUrl);
 
             StringBuilder responseText = new StringBuilder();
-            responseText.append("File converted successfully!\n\n");
+            responseText.append("File converted and saved successfully!\n\n");
             responseText.append("Format: ").append(extension.toLowerCase()).append("\n");
-            responseText.append("Filename: ").append(suggestedFilename).append("\n");
-            responseText.append("Size: ").append(fileBytes.length).append(" bytes\n\n");
-            responseText.append("Base64 content (decode to get file bytes):\n");
-            responseText.append(base64Content);
+            responseText.append("Filename: ").append(result.getFileName()).append("\n");
+            responseText.append("Size: ").append(result.getFileSize()).append(" bytes\n\n");
+            responseText.append("Download link:\n");
+            responseText.append(result.getDownloadUrl());
 
-            Map<String, Object> result = new java.util.HashMap<>();
-            result.put("content", List.of(Map.of("type", "text", "text", responseText.toString())));
-            result.put("isError", false);
-            result.put("base64Content", base64Content);
-            result.put("filename", suggestedFilename);
-            result.put("sizeBytes", fileBytes.length);
+            Map<String, Object> responseResult = new java.util.HashMap<>();
+            responseResult.put("content", List.of(Map.of("type", "text", "text", responseText.toString())));
+            responseResult.put("isError", false);
+            responseResult.put("fileId", result.getFileId());
+            responseResult.put("downloadUrl", result.getDownloadUrl());
+            responseResult.put("filename", result.getFileName());
+            responseResult.put("fileSizeBytes", result.getFileSize());
 
-            return ResponseEntity.ok(createJsonRpcSuccess(id, result));
+            return ResponseEntity.ok(createJsonRpcSuccess(id, responseResult));
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(
                     createJsonRpcError(id, -32602, e.getMessage(), null));
@@ -142,6 +167,16 @@ public class McpFileConverterRestController {
             return ResponseEntity.ok(
                     createJsonRpcError(id, -32603, "Conversion failed: " + e.getMessage(), null));
         }
+    }
+
+    private String buildBaseUrlFromRequest(HttpServletRequest request) {
+        if (request == null) return "";
+        String scheme = request.getScheme();
+        String serverName = request.getServerName();
+        int port = request.getServerPort();
+        String contextPath = request.getContextPath() != null ? request.getContextPath() : "";
+        boolean defaultPort = (scheme.equals("http") && port == 80) || (scheme.equals("https") && port == 443);
+        return scheme + "://" + serverName + (defaultPort ? "" : ":" + port) + contextPath;
     }
 
     private ResponseEntity<Map<String, Object>> handleInitialize(Object id, Map<String, Object> params) {

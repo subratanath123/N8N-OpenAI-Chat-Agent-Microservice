@@ -1,6 +1,10 @@
 package net.ai.chatbot.mcp.fileconverter.service;
 
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.ai.chatbot.dto.Attachment;
+import net.ai.chatbot.dto.AttachmentStorageResult;
+import net.ai.chatbot.service.AttachmentStorageService;
 import org.apache.commons.csv.CSVFormat;
 import org.apache.commons.csv.CSVPrinter;
 import org.apache.pdfbox.pdmodel.PDDocument;
@@ -17,10 +21,12 @@ import org.apache.poi.xwpf.usermodel.XWPFRun;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -30,7 +36,19 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class FileConverterService {
+
+    private static final Map<String, String> EXTENSION_TO_MIME = Map.of(
+            "txt", "text/plain",
+            "java", "text/plain",
+            "csv", "text/csv",
+            "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "pdf", "application/pdf",
+            "xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    private final AttachmentStorageService attachmentStorageService;
 
     public static final Set<String> SUPPORTED_EXTENSIONS = Set.of("txt", "java", "csv", "docx", "pdf", "xlsx");
 
@@ -70,6 +88,50 @@ public class FileConverterService {
             base = base + "." + ext;
         }
         return base;
+    }
+
+    /**
+     * Convert content to file format, save via AttachmentStorageService, and return download link.
+     *
+     * @param content    Text content to convert
+     * @param extension  Target extension (txt, java, csv, docx, pdf, xlsx)
+     * @param filename   Optional output filename
+     * @param chatbotId  Chatbot ID for storage (required for download path)
+     * @param baseUrl    Base URL for the download link (e.g. https://api.example.com)
+     * @return Map with fileId, downloadUrl, fileName, fileSize
+     */
+    public AttachmentStorageResult convertAndStore(String content, String extension, String filename,
+                                                   String chatbotId, String baseUrl) throws IOException {
+        byte[] fileBytes = convert(content, extension, filename);
+        String suggestedFilename = getSuggestedFilename(extension, filename);
+        String mimeType = EXTENSION_TO_MIME.getOrDefault(extension.toLowerCase().trim(), "application/octet-stream");
+
+        Attachment attachment = Attachment.builder()
+                .chatbotId(chatbotId)
+                .name(suggestedFilename)
+                .type(mimeType)
+                .size(fileBytes.length)
+                .length(fileBytes.length)
+                .data(fileBytes)
+                .uploadedAt(new java.util.Date())
+                .build();
+
+        AttachmentStorageResult result = attachmentStorageService.storeAttachmentInMongoDB(attachment, chatbotId);
+
+        String downloadPath = "/api/attachments/download/" + result.getFileId() + "/" + chatbotId;
+        String downloadUrl = (baseUrl != null && !baseUrl.isBlank())
+                ? baseUrl.replaceAll("/$", "") + downloadPath
+                : downloadPath;
+
+        return AttachmentStorageResult.builder()
+                .fileId(result.getFileId())
+                .fileName(result.getFileName())
+                .mimeType(result.getMimeType())
+                .fileSize(result.getFileSize())
+                .uploadedAt(result.getUploadedAt())
+                .status(result.getStatus())
+                .downloadUrl(downloadUrl)
+                .build();
     }
 
     private byte[] toTxt(String content) {
