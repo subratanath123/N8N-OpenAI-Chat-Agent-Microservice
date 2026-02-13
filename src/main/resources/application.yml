@@ -18,4 +18,3 @@ google:
 # Encryption Configuration (for storing OAuth tokens securely)
 encryption:
   key: ${ENCRYPTION_KEY:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef}
-

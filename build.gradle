@@ -69,6 +69,11 @@ dependencies {
 
     // Spring AI MCP Server for calendar tools
     implementation("org.springframework.ai:spring-ai-starter-mcp-server:1.1.2")
+
+    // File conversion (free/open-source libraries)
+    implementation 'org.apache.commons:commons-csv:1.10.0'
+    implementation 'org.apache.poi:poi-ooxml:5.2.5'
+    implementation 'org.apache.pdfbox:pdfbox:2.0.30'
 }
 
 dependencyManagement {

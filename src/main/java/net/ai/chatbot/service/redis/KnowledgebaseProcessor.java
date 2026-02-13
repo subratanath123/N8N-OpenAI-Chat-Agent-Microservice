@@ -156,7 +156,7 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
                     chatBot.getEmail(),
                     15,
                     1000,
-                    scrappedData ->{
+                    scrappedData -> {
                         n8nWebhookService.submitTextContentToN8nKnowledgebase(
                                 mapToSemanticText(extractStructuredContent(scrappedData.html(), scrappedData.url())),
                                 chatBot.getEmail(),
