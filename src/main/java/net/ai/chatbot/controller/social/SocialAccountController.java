@@ -1,0 +1,111 @@
+package net.ai.chatbot.controller.social;
+
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import net.ai.chatbot.dto.social.*;
+import net.ai.chatbot.service.social.SocialAccountService;
+import net.ai.chatbot.utils.AuthUtils;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+/**
+ * Social Media Suite API - Connect Facebook/Twitter, list accounts, schedule posts.
+ * Base URL: https://subratapc.net
+ * All endpoints require: Authorization: Bearer &lt;clerk_jwt&gt;
+ * userId resolved from JWT sub
+ */
+@RestController
+@RequestMapping("/v1/api/social-accounts")
+@RequiredArgsConstructor
+@Slf4j
+public class SocialAccountController {
+
+    private final SocialAccountService socialAccountService;
+
+    /**
+     * 1) Connect Facebook Account (store long-lived token + pages)
+     * POST /v1/api/social-accounts/facebook
+     */
+    @PostMapping("/facebook")
+    public ResponseEntity<FacebookConnectResponse> connectFacebook(
+            @Valid @RequestBody FacebookConnectRequest request) {
+        String userId = AuthUtils.getUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(socialAccountService.connectFacebook(userId, request));
+    }
+
+    /**
+     * 2) Connect Twitter/X Account
+     * POST /v1/api/social-accounts/twitter
+     */
+    @PostMapping("/twitter")
+    public ResponseEntity<TwitterConnectResponse> connectTwitter(
+            @Valid @RequestBody TwitterConnectRequest request) {
+        String userId = AuthUtils.getUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(socialAccountService.connectTwitter(userId, request));
+    }
+
+    /**
+     * 3) List Connected Accounts (My Accounts page)
+     * GET /v1/api/social-accounts
+     */
+    @GetMapping
+    public ResponseEntity<ListAccountsResponse> listAccounts() {
+        String userId = AuthUtils.getUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(socialAccountService.listAccounts(userId));
+    }
+
+    /**
+     * 4) List Posting Targets (dropdown in Create Post)
+     * GET /v1/api/social-accounts/targets?platform=facebook|twitter
+     */
+    @GetMapping("/targets")
+    public ResponseEntity<ListTargetsResponse> listTargets(
+            @RequestParam(required = false) String platform) {
+        String userId = AuthUtils.getUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(socialAccountService.listTargets(userId, platform));
+    }
+
+    /**
+     * 5) Disconnect Single Account
+     * DELETE /v1/api/social-accounts/{accountId}
+     */
+    @DeleteMapping("/{accountId}")
+    public ResponseEntity<DisconnectResponse> disconnect(@PathVariable String accountId) {
+        String userId = AuthUtils.getUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        boolean success = socialAccountService.disconnect(userId, accountId);
+        if (!success) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok(new DisconnectResponse(true));
+    }
+
+    /**
+     * 7) Internal Token Resolution for Worker/Scheduler
+     * POST /v1/api/social-accounts/targets/token
+     */
+    @PostMapping("/targets/token")
+    public ResponseEntity<TokenResolutionResponse> resolveToken(
+            @Valid @RequestBody TokenResolutionRequest request) {
+        String userId = AuthUtils.getUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(socialAccountService.resolveToken(userId, request.getTargetId()));
+    }
+}

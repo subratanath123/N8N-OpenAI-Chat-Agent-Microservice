@@ -20,6 +20,7 @@ public class DomainService {
                 "https://n8-n-lanmnan-chatbot-agent-next-js.vercel.app",
                 "http://localhost:3000",
                 "http://localhost:3002",
+                "https://subratapc.net",
                 "http://localhost:8000",
                 "https://jadeaibot.jadeordersmedia.com"
         );

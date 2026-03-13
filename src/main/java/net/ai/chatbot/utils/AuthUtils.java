@@ -6,6 +6,17 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 
 public class AuthUtils {
 
+    /**
+     * Get userId from JWT sub (Clerk user ID)
+     */
+    public static String getUserId() {
+        var context = SecurityContextHolder.getContext();
+        if (context == null) return null;
+        var authentication = context.getAuthentication();
+        if (!(authentication instanceof JwtAuthenticationToken token)) return null;
+        return (String) token.getTokenAttributes().get("sub");
+    }
+
     public static String getEmail() {
         var context = SecurityContextHolder.getContext();
         if (context == null) {

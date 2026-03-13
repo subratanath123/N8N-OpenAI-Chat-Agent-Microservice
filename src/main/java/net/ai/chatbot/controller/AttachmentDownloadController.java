@@ -58,14 +58,13 @@ public class AttachmentDownloadController {
     /**
      * Download file by fileId
      */
-    @GetMapping("/download/{fileId}/{chatbotId}")
-    public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId,
-                                               @PathVariable String chatbotId) {
+    @GetMapping("/download/{fileId}")
+    public ResponseEntity<byte[]> downloadFile(@PathVariable String fileId) {
 
         log.info("Download: {}", fileId);
 
-        FileMetadata metadata = attachmentStorageService.getFileMetadata(fileId, chatbotId);
-        byte[] content = attachmentStorageService.getFileContent(fileId, chatbotId);
+        FileMetadata metadata = attachmentStorageService.getFileMetadata(fileId);
+        byte[] content = attachmentStorageService.getFileContent(fileId);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + metadata.getFileName() + "\"")
@@ -76,13 +75,12 @@ public class AttachmentDownloadController {
     /**
      * Get file metadata
      */
-    @GetMapping("/metadata/{fileId}/{chatbotId}")
+    @GetMapping("/metadata/{fileId}")
     public ResponseEntity<FileMetadata> getFileMetadata(
-            @PathVariable String fileId,
-            @PathVariable String chatbotId) throws Exception {
+            @PathVariable String fileId) throws Exception {
 
         return ResponseEntity.ok(
-                attachmentStorageService.getFileMetadata(fileId, chatbotId)
+                attachmentStorageService.getFileMetadata(fileId)
         );
     }
 

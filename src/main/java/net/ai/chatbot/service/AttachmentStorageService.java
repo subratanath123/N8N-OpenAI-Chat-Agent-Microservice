@@ -72,21 +72,19 @@ public class AttachmentStorageService {
      * Retrieve file content from MongoDB by fileId
      *
      * @param fileId    the file ID
-     * @param chatbotId the chatbot ID
      * @return file content as bytes
      */
-    public byte[] getFileContent(String fileId, String chatbotId) {
-        log.debug("Retrieving file content: fileId={}, chatbotId={}", fileId, chatbotId);
+    public byte[] getFileContent(String fileId) {
+        log.debug("Retrieving file content: fileId={}", fileId);
 
         Query query = new Query().addCriteria(
                 Criteria.where("_id").is(fileId)
-                        .and("chatbotId").is(chatbotId)
         );
 
         Attachment attachment = mongoTemplate.findOne(query, Attachment.class);
 
         if (attachment == null || attachment.getData() == null) {
-            log.warn("File not found: fileId={}, chatbotId={}", fileId, chatbotId);
+            log.warn("File not found: fileId={}, chatbotId={}", fileId);
             return null;
         }
 
@@ -98,16 +96,14 @@ public class AttachmentStorageService {
      * Get file metadata (without content) from MongoDB
      *
      * @param fileId    the file ID
-     * @param chatbotId the chatbot ID
      * @return file metadata
      */
-    public FileMetadata getFileMetadata(String fileId, String chatbotId) {
-        log.debug("Retrieving file metadata: fileId={}, chatbotId={}", fileId, chatbotId);
+    public FileMetadata getFileMetadata(String fileId) {
+        log.debug("Retrieving file metadata: fileId={}", fileId);
 
         Query query = new Query().addCriteria(
                 new Criteria().andOperator(
                         Criteria.where("_id").in(fileId)
-                                .and("chatbotId").is(chatbotId)
                 )
         );
         // Project only the _id and the entire messages array
@@ -190,6 +186,22 @@ public class AttachmentStorageService {
 
         log.info("Found {} attachments for chatbot: {}", files.size(), chatbotId);
         return files;
+    }
+
+    /**
+     * Verify file ownership (user owns the file).
+     *
+     * @param fileId the file ID
+     * @param userId the user ID (owner identifier, stored in chatbotId field)
+     * @return true if the file belongs to the user
+     */
+    public boolean verifyOwnership(String fileId, String userId) {
+        Query query = new Query().addCriteria(
+                Criteria.where("_id").is(fileId)
+                        .and("chatbotId").is(userId)
+        );
+
+        return mongoTemplate.exists(query, Attachment.class);
     }
 
 }
