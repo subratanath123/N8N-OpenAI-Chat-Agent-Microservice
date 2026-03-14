@@ -18,6 +18,7 @@ public class Message {
     private String message;
     private String sessionId;
     private String chatbotId;
+    private String model;
 
     private String greetingMessage;
     private String instruction;

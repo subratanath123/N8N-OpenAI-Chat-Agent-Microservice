@@ -45,7 +45,8 @@ public class GenericN8NService<T, R> {
                 chatBot.getVectorIndexName(),
                 Collections.emptyMap(),
                 Collections.emptyMap(),
-                message.getFileAttachments()
+                message.getFileAttachments(),
+                message.getModel()
         );
     }
 
@@ -57,7 +58,9 @@ public class GenericN8NService<T, R> {
                                               String chatbotCollection,
                                               String vectorIndexName,
                                               Map<String, Object> extraFormFields,
-                                              Map<String, String> extraHeaders, List<FileAttachment> fileAttachments) {
+                                              Map<String, String> extraHeaders, 
+                                              List<FileAttachment> fileAttachments,
+                                              String model) {
 
         if (webhookUrl == null || webhookUrl.isBlank()) {
             return N8NChatResponse.error("INVALID_URL", "Webhook URL is required");
@@ -69,7 +72,7 @@ public class GenericN8NService<T, R> {
 
         try {
             Map<String, String> headers = buildHeaders(chatBot, chatbotCollection, chatbotId,
-                    vectorIndexName, conversationId, extraHeaders);
+                    vectorIndexName, conversationId, extraHeaders, model);
 
             // Add multimodal headers
             if (fileAttachments != null && !fileAttachments.isEmpty()) {
@@ -103,7 +106,8 @@ public class GenericN8NService<T, R> {
                                              String chatbotId,
                                              String vectorIndexName,
                                              String conversationId,
-                                             Map<String, String> extraHeaders) {
+                                             Map<String, String> extraHeaders,
+                                             String model) {
         Map<String, String> headers = new HashMap<>();
         headers.put(HttpHeaders.ACCEPT, MediaType.ALL_VALUE);
         headers.put("email", AuthUtils.getEmail());
@@ -122,6 +126,11 @@ public class GenericN8NService<T, R> {
         if (conversationId != null && !conversationId.isBlank()) {
             headers.put("sessionid", conversationId);
             headers.put("conversationid", conversationId);
+        }
+
+        // Add model header if provided
+        if (model != null && !model.isBlank()) {
+            headers.put("model", model);
         }
 
         if (extraHeaders != null) {
