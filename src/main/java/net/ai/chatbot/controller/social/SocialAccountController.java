@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * Social Media Suite API - Connect Facebook/Twitter, list accounts, schedule posts.
+ * Social Media Suite API - Connect Facebook/Twitter/LinkedIn, list accounts, schedule posts.
  * Base URL: https://subratapc.net
  * All endpoints require: Authorization: Bearer &lt;clerk_jwt&gt;
  * userId resolved from JWT sub
@@ -52,7 +52,21 @@ public class SocialAccountController {
     }
 
     /**
-     * 3) List Connected Accounts (My Accounts page)
+     * 3) Connect LinkedIn Account
+     * POST /v1/api/social-accounts/linkedin
+     */
+    @PostMapping("/linkedin")
+    public ResponseEntity<LinkedInConnectResponse> connectLinkedIn(
+            @Valid @RequestBody LinkedInConnectRequest request) {
+        String userId = AuthUtils.getUserId();
+        if (userId == null) {
+            return ResponseEntity.status(401).build();
+        }
+        return ResponseEntity.ok(socialAccountService.connectLinkedIn(userId, request));
+    }
+
+    /**
+     * 4) List Connected Accounts (My Accounts page)
      * GET /v1/api/social-accounts
      */
     @GetMapping
@@ -65,8 +79,8 @@ public class SocialAccountController {
     }
 
     /**
-     * 4) List Posting Targets (dropdown in Create Post)
-     * GET /v1/api/social-accounts/targets?platform=facebook|twitter
+     * 5) List Posting Targets (dropdown in Create Post)
+     * GET /v1/api/social-accounts/targets?platform=facebook|twitter|linkedin
      */
     @GetMapping("/targets")
     public ResponseEntity<ListTargetsResponse> listTargets(
@@ -79,7 +93,7 @@ public class SocialAccountController {
     }
 
     /**
-     * 5) Disconnect Single Account
+     * 6) Disconnect Single Account
      * DELETE /v1/api/social-accounts/{accountId}
      */
     @DeleteMapping("/{accountId}")

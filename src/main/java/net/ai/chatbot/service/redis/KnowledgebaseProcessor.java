@@ -1,7 +1,7 @@
 package net.ai.chatbot.service.redis;
 
 import lombok.extern.slf4j.Slf4j;
-import net.ai.chatbot.dto.FileUpload;
+import net.ai.chatbot.dto.SecureFileUpload;
 import net.ai.chatbot.entity.ChatBot;
 import net.ai.chatbot.entity.ChatBotTask;
 import net.ai.chatbot.entity.KnowledgeBase;
@@ -68,19 +68,19 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
         //Training PDF Files
         if (Objects.nonNull(chatBotTask.getFileIds()) && !chatBotTask.getFileIds().isEmpty()) {
             getFileList(chatBotTask.getFileIds())
-                    .forEach(fileUpload -> {
+                    .forEach(secureFileUpload -> {
                         n8nWebhookService.submitAttachmentToN8nKnowledgebase(
-                                fileUpload.getData(),
-                                fileUpload.getFileName(),
-                                fileUpload.getEmail(),
+                                secureFileUpload.getData(),
+                                secureFileUpload.getFileName(),
+                                secureFileUpload.getEmail(),
                                 knowledgebaseCollectionName,
                                 knowledgebaseVectorIndexName,
-                                fileUpload.getContentType(),
+                                secureFileUpload.getContentType(),
                                 knowledgeBaseTrainingWebhookUrl
                         );
 
                         KnowledgeBase knowledgeBase = KnowledgeBase.builder()
-                                .knowledgeOf(fileUpload.getFileName())
+                                .knowledgeOf(secureFileUpload.getFileName())
                                 .chatbotId(chatBot.getId())
                                 .knowledgeType(KnowledgeBaseType.PDF)
                                 .created(new Date().toInstant())
@@ -200,10 +200,10 @@ public class KnowledgebaseProcessor implements StreamListener<String, ObjectReco
         );
     }
 
-    private List<FileUpload> getFileList(List<String> fileIdList) {
+    private List<SecureFileUpload> getFileList(List<String> fileIdList) {
         return mongoTemplate.find(
                 new Query().addCriteria(Criteria.where("id").in(fileIdList)),
-                FileUpload.class
+                SecureFileUpload.class
         );
     }
 }

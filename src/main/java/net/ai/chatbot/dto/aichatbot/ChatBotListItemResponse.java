@@ -7,11 +7,14 @@ import lombok.NoArgsConstructor;
 
 import java.util.Date;
 
+/**
+ * Enhanced response for chatbot list with statistics
+ */
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class ChatBotCreationResponse {
+public class ChatBotListItemResponse {
     
     private String id;
     private String title;
@@ -19,10 +22,8 @@ public class ChatBotCreationResponse {
     private Date createdAt;
     private String createdBy;
     private String status;
-    private String message;
     
-    // Statistics (optional, included in list response)
+    // Statistics
     private Long totalConversations;
     private Long totalMessages;
 }
-

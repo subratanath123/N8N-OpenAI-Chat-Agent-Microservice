@@ -1,7 +1,7 @@
 package net.ai.chatbot.service.aichatbot;
 
 import lombok.extern.slf4j.Slf4j;
-import net.ai.chatbot.dto.FileUpload;
+import net.ai.chatbot.dto.SecureFileUpload;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -17,16 +17,16 @@ public class FileUploadService {
     @Autowired
     private MongoTemplate mongoTemplate;
 
-    public FileUpload load(String id) {
+    public SecureFileUpload load(String id) {
         Query query = new Query()
                 .addCriteria(Criteria.where("id").is(id));
 
-        return Optional.ofNullable(mongoTemplate.findOne(query, FileUpload.class))
+        return Optional.ofNullable(mongoTemplate.findOne(query, SecureFileUpload.class))
                 .orElse(null);
     }
 
-    public FileUpload save(FileUpload fileUpload) {
-        return mongoTemplate.save(fileUpload);
+    public SecureFileUpload save(SecureFileUpload secureFileUpload) {
+        return mongoTemplate.save(secureFileUpload);
     }
 
 }

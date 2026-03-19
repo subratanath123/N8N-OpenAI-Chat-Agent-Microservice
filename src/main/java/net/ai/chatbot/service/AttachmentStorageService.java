@@ -71,7 +71,7 @@ public class AttachmentStorageService {
     /**
      * Retrieve file content from MongoDB by fileId
      *
-     * @param fileId    the file ID
+     * @param fileId the file ID
      * @return file content as bytes
      */
     public byte[] getFileContent(String fileId) {
@@ -95,7 +95,7 @@ public class AttachmentStorageService {
     /**
      * Get file metadata (without content) from MongoDB
      *
-     * @param fileId    the file ID
+     * @param fileId the file ID
      * @return file metadata
      */
     public FileMetadata getFileMetadata(String fileId) {
@@ -130,7 +130,7 @@ public class AttachmentStorageService {
                 .fileName(attachment.getName())
                 .mimeType(attachment.getType())
                 .fileSize(attachment.getSize())
-                .uploadedAt(attachment.getUploadedAt().getTime())
+                .uploadedAt(attachment.getUploadedAt() != null ? attachment.getUploadedAt().getTime() : 0)
                 .status("stored")
                 .build();
     }

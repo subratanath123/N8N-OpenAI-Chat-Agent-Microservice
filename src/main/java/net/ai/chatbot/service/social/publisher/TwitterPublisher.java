@@ -5,10 +5,12 @@ import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.social.MediaItem;
 import net.ai.chatbot.service.AttachmentStorageService;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.*;
 
@@ -92,6 +94,25 @@ public class TwitterPublisher {
             log.info("Twitter tweet published successfully: {} with {} media", tweetId, mediaIds.size());
             return tweetId;
             
+        } catch (WebClientResponseException e) {
+            log.error("Failed to publish to Twitter @{}: HTTP {} - {}", username, e.getStatusCode(), e.getMessage());
+            
+            // Handle 402 Payment Required specifically
+            if (e.getStatusCode() == HttpStatus.PAYMENT_REQUIRED) {
+                throw new PublishException(
+                    "Twitter API access denied (402 Payment Required). " +
+                    "Your Twitter Developer account needs to be upgraded to a paid tier (Basic or higher) " +
+                    "to post tweets via the API. Please visit https://developer.twitter.com/en/portal/products " +
+                    "to upgrade your access level.",
+                    e
+                );
+            }
+            
+            // Handle other HTTP errors
+            throw new PublishException(
+                String.format("Twitter API error (%s): %s", e.getStatusCode(), e.getMessage()),
+                e
+            );
         } catch (Exception e) {
             log.error("Failed to publish to Twitter @{}: {}", username, e.getMessage(), e);
             throw new PublishException("Twitter publish failed: " + e.getMessage(), e);
@@ -141,6 +162,23 @@ public class TwitterPublisher {
                 return null;
             }
 
+        } catch (WebClientResponseException e) {
+            log.error("Failed to upload media {} to Twitter: HTTP {} - {}", 
+                    mediaItem.getMediaId(), e.getStatusCode(), e.getMessage());
+            
+            // Handle 402 Payment Required specifically
+            if (e.getStatusCode() == HttpStatus.PAYMENT_REQUIRED) {
+                throw new PublishException(
+                    "Twitter API access denied (402 Payment Required). " +
+                    "Your Twitter Developer account needs paid tier access for media uploads.",
+                    e
+                );
+            }
+            
+            throw new PublishException(
+                String.format("Twitter media upload error (%s): %s", e.getStatusCode(), e.getMessage()),
+                e
+            );
         } catch (Exception e) {
             log.error("Failed to upload media {} to Twitter: {}", mediaItem.getMediaId(), e.getMessage(), e);
             throw new PublishException("Twitter media upload failed: " + e.getMessage(), e);

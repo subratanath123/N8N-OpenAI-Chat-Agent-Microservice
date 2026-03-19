@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static net.ai.chatbot.constants.Constants.CHAT_BOT_CREATE_EVENT_STREAM;
 
@@ -75,6 +76,18 @@ public class ChatBotService {
                 .selectedDataSource(request.getSelectedDataSource())
                 .width(request.getWidth())
                 .height(request.getHeight())
+                .model(request.getModel())
+                // Widget theme fields
+                .headerBackground(request.getHeaderBackground())
+                .headerText(request.getHeaderText())
+                .aiBackground(request.getAiBackground())
+                .aiText(request.getAiText())
+                .userBackground(request.getUserBackground())
+                .userText(request.getUserText())
+                .widgetPosition(request.getWidgetPosition())
+                .aiAvatarUrl(request.getAiAvatar())
+                .avatarFileId(request.getAvatarFileId())
+                .hideMainBannerLogo(request.getHideMainBannerLogo())
                 .qaPairs(qaPairs)
                 .fileIds(request.getFileIds())
                 .addedWebsites(request.getAddedWebsites())
@@ -138,6 +151,18 @@ public class ChatBotService {
                 .selectedDataSource(request.getSelectedDataSource())
                 .width(request.getWidth())
                 .height(request.getHeight())
+                .model(request.getModel())
+                // Widget theme fields
+                .headerBackground(request.getHeaderBackground())
+                .headerText(request.getHeaderText())
+                .aiBackground(request.getAiBackground())
+                .aiText(request.getAiText())
+                .userBackground(request.getUserBackground())
+                .userText(request.getUserText())
+                .widgetPosition(request.getWidgetPosition())
+                .aiAvatarUrl(request.getAiAvatar())
+                .avatarFileId(request.getAvatarFileId())
+                .hideMainBannerLogo(request.getHideMainBannerLogo())
 
                 // merged new + existing
                 .fileIds(mergedFileIds)
@@ -263,6 +288,213 @@ public class ChatBotService {
         chatBotDao.deleteById(id);
 
         log.info("Chatbot deleted successfully: {}", id);
+    }
+
+    /**
+     * Toggle chatbot status (ACTIVE / DISABLED)
+     */
+    @Transactional
+    public ChatBot toggleChatBotStatus(String id, String status) {
+        log.info("Toggling chatbot status: {} to {}", id, status);
+
+        ChatBot chatBot = chatBotDao.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("Chatbot not found with ID: " + id));
+
+        // Validate status
+        if (!"ACTIVE".equals(status) && !"DISABLED".equals(status)) {
+            throw new IllegalArgumentException("Invalid status. Must be 'ACTIVE' or 'DISABLED'");
+        }
+
+        chatBot.setStatus(status);
+        chatBot.setUpdatedAt(new Date());
+
+        ChatBot updated = chatBotDao.save(chatBot);
+
+        log.info("Chatbot status updated successfully: {} -> {}", id, status);
+
+        return updated;
+    }
+
+    /**
+     * Get aggregated statistics for user's chatbots
+     */
+    public net.ai.chatbot.dto.aichatbot.ChatBotStatsResponse getChatBotStats(String userEmail) {
+        log.info("Getting chatbot statistics for user: {}", userEmail);
+
+        // Get all chatbots for user
+        List<ChatBot> chatbots = getChatBotsByUser(userEmail);
+
+        long totalChatbots = chatbots.size();
+        long activeDomains = chatbots.stream()
+                .filter(bot -> "ACTIVE".equals(bot.getStatus()))
+                .count();
+
+        // Get conversation and message counts for all chatbots
+        long totalConversations = 0;
+        long totalMessages = 0;
+
+        for (ChatBot chatbot : chatbots) {
+            // Count unique conversations using aggregation
+            GroupOperation groupByConversation = Aggregation.group("conversationid");
+            MatchOperation matchChatbot = Aggregation.match(
+                    Criteria.where("chatbotId").is(chatbot.getId())
+            );
+            CountOperation count = Aggregation.count().as("total");
+
+            Aggregation aggregation = Aggregation.newAggregation(
+                    matchChatbot,
+                    groupByConversation,
+                    count
+            );
+
+            try {
+                var result = mongoTemplate.aggregate(
+                        aggregation,
+                        "n8n_chat_session_histories",
+                        org.bson.Document.class
+                );
+                
+                long conversations = result.getMappedResults().isEmpty() ? 0 : 
+                        ((Number) result.getMappedResults().get(0).get("total", 0)).longValue();
+
+                // Count total messages for this chatbot
+                long messages = mongoTemplate.count(
+                        new Query().addCriteria(Criteria.where("chatbotId").is(chatbot.getId())),
+                        "n8n_chat_session_histories"
+                );
+
+                totalConversations += conversations;
+                totalMessages += messages;
+                
+                log.debug("Chatbot {}: {} conversations, {} messages", 
+                        chatbot.getId(), conversations, messages);
+                
+            } catch (Exception e) {
+                log.warn("Error counting stats for chatbot {}: {}", chatbot.getId(), e.getMessage());
+            }
+        }
+
+        log.info("Total stats - Chatbots: {}, Conversations: {}, Messages: {}, Active: {}", 
+                totalChatbots, totalConversations, totalMessages, activeDomains);
+
+        return net.ai.chatbot.dto.aichatbot.ChatBotStatsResponse.builder()
+                .totalChatbots(totalChatbots)
+                .totalConversations(totalConversations)
+                .totalMessages(totalMessages)
+                .activeDomains(activeDomains)
+                .build();
+    }
+
+    /**
+     * Get chatbots list with per-chatbot statistics
+     */
+    public List<net.ai.chatbot.dto.aichatbot.ChatBotListItemResponse> getChatBotsWithStats(String userEmail) {
+        log.info("Getting chatbots with statistics for user: {}", userEmail);
+
+        List<ChatBot> chatbots = getChatBotsByUser(userEmail);
+
+        return chatbots.stream()
+                .map(chatbot -> {
+                    // Count unique conversations using aggregation
+                    long conversations = 0;
+                    long messages = 0;
+                    
+                    try {
+                        GroupOperation groupByConversation = Aggregation.group("conversationid");
+                        MatchOperation matchChatbot = Aggregation.match(
+                                Criteria.where("chatbotId").is(chatbot.getId())
+                        );
+                        CountOperation count = Aggregation.count().as("total");
+
+                        Aggregation aggregation = Aggregation.newAggregation(
+                                matchChatbot,
+                                groupByConversation,
+                                count
+                        );
+
+                        var result = mongoTemplate.aggregate(
+                                aggregation,
+                                "n8n_chat_session_histories",
+                                org.bson.Document.class
+                        );
+                        
+                        conversations = result.getMappedResults().isEmpty() ? 0 : 
+                                ((Number) result.getMappedResults().get(0).get("total", 0)).longValue();
+
+                        // Count total messages for this chatbot
+                        messages = mongoTemplate.count(
+                                new Query().addCriteria(Criteria.where("chatbotId").is(chatbot.getId())),
+                                "n8n_chat_session_histories"
+                        );
+                        
+                    } catch (Exception e) {
+                        log.warn("Error counting stats for chatbot {}: {}", chatbot.getId(), e.getMessage());
+                    }
+
+                    return net.ai.chatbot.dto.aichatbot.ChatBotListItemResponse.builder()
+                            .id(chatbot.getId())
+                            .name(chatbot.getName())
+                            .title(chatbot.getTitle())
+                            .createdAt(chatbot.getCreatedAt())
+                            .createdBy(chatbot.getCreatedBy())
+                            .status(chatbot.getStatus())
+                            .totalConversations(conversations)
+                            .totalMessages(messages)
+                            .build();
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get statistics for a single chatbot
+     */
+    public net.ai.chatbot.dto.aichatbot.ChatBotStatsItemResponse getChatBotStatsById(String chatbotId) {
+        log.info("Getting statistics for chatbot: {}", chatbotId);
+
+        long conversations = 0;
+        long messages = 0;
+
+        try {
+            // Count unique conversations using aggregation
+            GroupOperation groupByConversation = Aggregation.group("conversationid");
+            MatchOperation matchChatbot = Aggregation.match(
+                    Criteria.where("chatbotId").is(chatbotId)
+            );
+            CountOperation count = Aggregation.count().as("total");
+
+            Aggregation aggregation = Aggregation.newAggregation(
+                    matchChatbot,
+                    groupByConversation,
+                    count
+            );
+
+            var result = mongoTemplate.aggregate(
+                    aggregation,
+                    "n8n_chat_session_histories",
+                    org.bson.Document.class
+            );
+
+            conversations = result.getMappedResults().isEmpty() ? 0 :
+                    ((Number) result.getMappedResults().get(0).get("total", 0)).longValue();
+
+            // Count total messages
+            messages = mongoTemplate.count(
+                    new Query().addCriteria(Criteria.where("chatbotId").is(chatbotId)),
+                    "n8n_chat_session_histories"
+            );
+
+            log.debug("Chatbot {} stats: {} conversations, {} messages",
+                    chatbotId, conversations, messages);
+
+        } catch (Exception e) {
+            log.error("Error counting stats for chatbot {}: {}", chatbotId, e.getMessage());
+        }
+
+        return net.ai.chatbot.dto.aichatbot.ChatBotStatsItemResponse.builder()
+                .chatbotId(chatbotId)
+                .totalConversations(conversations)
+                .totalMessages(messages)
+                .build();
     }
 
     /*

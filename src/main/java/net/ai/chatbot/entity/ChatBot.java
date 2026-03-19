@@ -34,6 +34,21 @@ public class ChatBot {
     private String width;
     private String height;
 
+    // AI Model
+    private String model;
+
+    // Widget Theme
+    private String headerBackground;
+    private String headerText;
+    private String aiBackground;
+    private String aiText;
+    private String userBackground;
+    private String userText;
+    private String widgetPosition;
+    private String aiAvatarUrl;
+    private String avatarFileId;
+    private Boolean hideMainBannerLogo;
+
     // Q&A pairs
     private List<QAPair> qaPairs;
 

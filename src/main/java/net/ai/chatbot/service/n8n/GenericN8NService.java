@@ -56,6 +56,7 @@ public class GenericN8NService<T, R> {
                                               String messageContent,
                                               String conversationId,
                                               String chatbotCollection,
+
                                               String vectorIndexName,
                                               Map<String, Object> extraFormFields,
                                               Map<String, String> extraHeaders, 

@@ -46,6 +46,21 @@ public class ChatBotCreationRequest {
     private String width;
     private String height;
 
+    // AI Model
+    private String model;
+
+    // Widget Theme (flat fields for easy mapping)
+    private String widgetPosition;
+    private String headerBackground;
+    private String headerText;
+    private String aiBackground;
+    private String aiText;
+    private String userBackground;
+    private String userText;
+    private String aiAvatar;
+    private String avatarFileId;
+    private Boolean hideMainBannerLogo;
+
     // Q&A pairs
     @Valid
     @ValidQAPairs

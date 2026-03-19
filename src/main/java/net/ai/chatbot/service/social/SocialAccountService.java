@@ -91,6 +91,37 @@ public class SocialAccountService {
     }
 
     /**
+     * Connect LinkedIn account - always add new.
+     * LinkedIn access tokens last ~60 days (Sign In + Share products).
+     * No automatic refresh without Marketing Developer Platform.
+     */
+    @Transactional
+    public LinkedInConnectResponse connectLinkedIn(String userId, LinkedInConnectRequest request) {
+        SocialAccount account = SocialAccount.builder()
+                .id(UUID.randomUUID().toString())
+                .userId(userId)
+                .platform("linkedin")
+                .connectedAt(new java.util.Date())
+                .accessToken(encryptionUtils.encrypt(request.getAccessToken()))
+                .refreshToken(request.getRefreshToken() != null ? encryptionUtils.encrypt(request.getRefreshToken()) : null)
+                .expiresIn(request.getExpiresIn())
+                .linkedInUserId(request.getLinkedInUserId())
+                .displayName(request.getDisplayName())
+                .email(request.getEmail())
+                .profilePicture(request.getProfilePicture())
+                .build();
+
+        socialAccountDao.save(account);
+        log.info("LinkedIn account connected for user {}: {} ({})", userId, request.getDisplayName(), request.getLinkedInUserId());
+
+        return LinkedInConnectResponse.builder()
+                .success(true)
+                .accountId(account.getId())
+                .platform("linkedin")
+                .build();
+    }
+
+    /**
      * List all connected accounts for user.
      */
     public ListAccountsResponse listAccounts(String userId) {
@@ -108,6 +139,7 @@ public class SocialAccountService {
      * List posting targets (for Create Post dropdown).
      * Facebook: targetId = accountId:pageId
      * Twitter: targetId = accountId
+     * LinkedIn: targetId = accountId
      */
     public ListTargetsResponse listTargets(String userId, String platform) {
         List<SocialAccount> accounts = platform != null && !platform.isBlank()
@@ -134,6 +166,13 @@ public class SocialAccountService {
                         .platform("twitter")
                         .displayName("X (Twitter) - @" + acc.getUsername())
                         .username(acc.getUsername())
+                        .build());
+            } else if ("linkedin".equals(acc.getPlatform())) {
+                targets.add(SocialTargetResponse.builder()
+                        .targetId(acc.getId())
+                        .accountId(acc.getId())
+                        .platform("linkedin")
+                        .displayName("LinkedIn - " + acc.getDisplayName())
                         .build());
             }
         }
@@ -276,8 +315,8 @@ public class SocialAccountService {
     private boolean isPlatformMatch(String targetId, String platform) {
         if ("facebook".equals(platform)) {
             return targetId.contains(":"); // Facebook format: accountId:pageId
-        } else if ("twitter".equals(platform)) {
-            return !targetId.contains(":"); // Twitter format: accountId
+        } else if ("twitter".equals(platform) || "linkedin".equals(platform)) {
+            return !targetId.contains(":"); // Twitter/LinkedIn format: accountId
         }
         return false;
     }
@@ -294,8 +333,12 @@ public class SocialAccountService {
                         if ("facebook".equals(token.getPlatform())) {
                             // Get page name from account
                             displayName = "Facebook - " + getPageName(targetId);
-                        } else {
+                        } else if ("twitter".equals(token.getPlatform())) {
                             displayName = "X (Twitter) - @" + token.getUsername();
+                        } else if ("linkedin".equals(token.getPlatform())) {
+                            displayName = "LinkedIn - " + token.getDisplayName();
+                        } else {
+                            displayName = "Unknown Platform";
                         }
                         
                         return SocialPostResponse.TargetInfo.builder()
@@ -368,14 +411,26 @@ public class SocialAccountService {
                                     .build()))
                     .orElseThrow(() -> new IllegalArgumentException("Target not found: " + targetId));
         } else {
-            // Twitter: accountId
+            // Twitter or LinkedIn: accountId
             return socialAccountDao.findByIdAndUserId(targetId, userId)
-                    .filter(acc -> "twitter".equals(acc.getPlatform()))
-                    .map(acc -> TokenResolutionResponse.builder()
-                            .platform("twitter")
-                            .accessToken(encryptionUtils.decrypt(acc.getAccessToken()))
-                            .username(acc.getUsername())
-                            .build())
+                    .map(acc -> {
+                        if ("twitter".equals(acc.getPlatform())) {
+                            return TokenResolutionResponse.builder()
+                                    .platform("twitter")
+                                    .accessToken(encryptionUtils.decrypt(acc.getAccessToken()))
+                                    .username(acc.getUsername())
+                                    .build();
+                        } else if ("linkedin".equals(acc.getPlatform())) {
+                            return TokenResolutionResponse.builder()
+                                    .platform("linkedin")
+                                    .accessToken(encryptionUtils.decrypt(acc.getAccessToken()))
+                                    .linkedInUserId(acc.getLinkedInUserId())
+                                    .displayName(acc.getDisplayName())
+                                    .build();
+                        } else {
+                            throw new IllegalArgumentException("Unsupported platform: " + acc.getPlatform());
+                        }
+                    })
                     .orElseThrow(() -> new IllegalArgumentException("Target not found: " + targetId));
         }
     }

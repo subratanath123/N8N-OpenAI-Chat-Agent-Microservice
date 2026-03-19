@@ -1,7 +1,7 @@
 package net.ai.chatbot.controller.file;
 
 import lombok.extern.slf4j.Slf4j;
-import net.ai.chatbot.dto.FileUpload;
+import net.ai.chatbot.dto.SecureFileUpload;
 import net.ai.chatbot.service.aichatbot.FileUploadService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -27,7 +27,7 @@ public class FileUploadController {
         TODO:: Don't use the method now...Have to fix file attachment in response.
      */
     @GetMapping("/{id}")
-    public FileUpload getFile(@PathVariable(value = "id") String fileId) {
+    public SecureFileUpload getFile(@PathVariable(value = "id") String fileId) {
         return fileUploadService.load(fileId);
     }
 
@@ -41,7 +41,7 @@ public class FileUploadController {
         }
 
         try {
-            FileUpload fileUpload = fileUploadService.save(FileUpload.builder()
+            SecureFileUpload secureFileUpload = fileUploadService.save(SecureFileUpload.builder()
                     .data(file.getBytes())
                     .email(getEmail())
                     .contentType(file.getContentType())
@@ -49,7 +49,7 @@ public class FileUploadController {
                     .build());
 
             Map<String, Object> response = new HashMap<>();
-            response.put("fileId", fileUpload.getId());
+            response.put("fileId", secureFileUpload.getId());
 
             return ResponseEntity.ok(response);
 

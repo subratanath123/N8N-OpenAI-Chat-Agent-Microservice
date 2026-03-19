@@ -34,8 +34,7 @@ public class AttachmentDownloadController {
     @PostMapping("/upload")
     public ResponseEntity<AttachmentStorageResult> uploadFile(
             @RequestParam("file") MultipartFile file,
-            @RequestParam String chatbotId,
-            @RequestParam String sessionId) throws Exception {
+            @RequestParam String chatbotId) throws Exception {
 
         log.info("Upload: {}, size: {}", file.getOriginalFilename(), file.getSize());
 

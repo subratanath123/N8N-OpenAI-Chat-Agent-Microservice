@@ -29,6 +29,7 @@ public class SocialPostPublisher {
     private final SocialAccountService socialAccountService;
     private final FacebookPublisher facebookPublisher;
     private final TwitterPublisher twitterPublisher;
+    private final LinkedInPublisher linkedInPublisher;
 
     /**
      * Publish a post to all its targets.
@@ -114,6 +115,18 @@ public class SocialPostPublisher {
                 twitterPublisher.publishImmediately(
                         token.getAccessToken(),
                         token.getUsername(),
+                        post.getContent(),
+                        post.getMedia(),
+                        post.getUserId()
+                );
+            }
+            case "linkedin" -> {
+                // LinkedIn has no native scheduling in basic products
+                // Always publish immediately (cron job handles scheduling)
+                linkedInPublisher.publishImmediately(
+                        token.getAccessToken(),
+                        token.getLinkedInUserId(),
+                        token.getDisplayName(),
                         post.getContent(),
                         post.getMedia(),
                         post.getUserId()

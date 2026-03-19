@@ -32,7 +32,7 @@ public class SocialAccount {
     private String userId;
 
     /**
-     * facebook | twitter
+     * facebook | twitter | linkedin
      */
     private String platform;
 
@@ -54,4 +54,26 @@ public class SocialAccount {
     private String accessToken;   // encrypted
     private String refreshToken; // encrypted
     private String username;
+    
+    // --- LinkedIn fields ---
+    /**
+     * LinkedIn user ID (OpenID Connect sub claim)
+     * Format: urn:li:person:AbCdEfGhIj
+     */
+    private String linkedInUserId;
+    
+    /**
+     * Display name for UI
+     */
+    private String displayName;
+    
+    /**
+     * LinkedIn email
+     */
+    private String email;
+    
+    /**
+     * Profile picture URL
+     */
+    private String profilePicture;
 }
