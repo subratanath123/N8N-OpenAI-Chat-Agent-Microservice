@@ -1,0 +1,72 @@
+package net.ai.chatbot.entity;
+
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+/**
+ * Media asset stored in Supabase Storage.
+ * Backend uploads files to Supabase and tracks metadata here.
+ */
+@Document(collection = "media_assets")
+@Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
+public class MediaAsset {
+
+    @Id
+    private String id;
+
+    /**
+     * User email from Clerk JWT (indexed for fast queries)
+     */
+    @Indexed
+    private String userEmail;
+
+    /**
+     * Original filename for display
+     */
+    private String fileName;
+
+    /**
+     * MIME type (e.g., image/jpeg, video/mp4)
+     */
+    private String mimeType;
+
+    /**
+     * File size in bytes
+     */
+    private Long sizeBytes;
+
+    /**
+     * Full public CDN URL from Supabase
+     * Return this to frontend
+     */
+    private String supabaseUrl;
+
+    /**
+     * Bucket-relative path (used for deletion)
+     * Format: social-posts/{userEmail}/{timestamp}_{filename}
+     */
+    private String objectPath;
+
+    /**
+     * Upload timestamp
+     */
+    private Instant createdAt;
+
+    /**
+     * Optional tags for organization
+     */
+    @Builder.Default
+    private List<String> tags = new ArrayList<>();
+}

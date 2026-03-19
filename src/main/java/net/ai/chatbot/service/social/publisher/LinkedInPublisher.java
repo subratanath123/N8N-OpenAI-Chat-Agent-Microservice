@@ -157,17 +157,32 @@ public class LinkedInPublisher {
     /**
      * Upload a single media item to LinkedIn and return the asset URN.
      * Uses LinkedIn's media upload flow (register, upload, finalize).
+     * Handles both Attachment-based (SocialAsset) and CDN-based (MediaAsset) media.
      */
     private String uploadMediaToLinkedIn(String accessToken, String linkedInUserId, 
                                         MediaItem mediaItem, String userId) {
         try {
             log.info("Uploading media {} to LinkedIn", mediaItem.getMediaId());
 
-            // Download media from our storage
-            byte[] mediaBytes = attachmentStorageService.getFileContent(mediaItem.getMediaId());
+            byte[] mediaBytes;
+            
+            // Try Attachment storage first (SocialAsset from /v1/api/social-media/upload)
+            mediaBytes = attachmentStorageService.getFileContent(mediaItem.getMediaId());
+            
+            // If not found in Attachment, use mediaUrl directly (MediaAsset from /v1/api/assets/upload)
             if (mediaBytes == null || mediaBytes.length == 0) {
-                log.error("Media file not found or empty: {}", mediaItem.getMediaId());
-                return null;
+                if (mediaItem.getMediaUrl() != null && !mediaItem.getMediaUrl().isEmpty()) {
+                    log.info("Media not in attachment storage, downloading from CDN URL: {}", mediaItem.getMediaUrl());
+                    try {
+                        mediaBytes = downloadFromUrl(mediaItem.getMediaUrl());
+                    } catch (Exception e) {
+                        log.error("Failed to download media from URL: {}", mediaItem.getMediaUrl(), e);
+                        return null;
+                    }
+                } else {
+                    log.error("Media file not found or empty: {}", mediaItem.getMediaId());
+                    return null;
+                }
             }
 
             // Check if media type is supported
@@ -261,8 +276,22 @@ public class LinkedInPublisher {
     }
 
     // Response records
+    /**
+     * Download media from a URL (for MediaAsset CDN URLs)
+     */
+    private byte[] downloadFromUrl(String url) throws Exception {
+        return webClientBuilder
+                .codecs(config -> config.defaultCodecs().maxInMemorySize(50 * 1024 * 1024)) // 50MB limit
+                .build()
+                .get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(byte[].class)
+                .block();
+    }
+
     private record LinkedInUgcPostResponse(String id) {}
-    
+
     private record LinkedInRegisterUploadResponse(Value value) {
         record Value(Map<String, Map<String, Object>> uploadMechanism, String asset) {}
     }

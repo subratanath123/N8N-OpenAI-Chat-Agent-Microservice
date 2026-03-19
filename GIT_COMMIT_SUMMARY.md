@@ -1,294 +1,209 @@
-# Git Commit Summary - Chatbot Reply API
+# Git Commit Summary - LinkedIn Integration & Twitter Error Handling
 
-**Date:** February 11, 2026  
-**Commit:** `d882dc9`  
-**Branch:** `master`  
-**Status:** ✅ Pushed Successfully
+## Commit Information
 
----
+**Commit Hash**: `c7fb875`  
+**Branch**: `master`  
+**Date**: 2026-03-19  
+**Author**: subratanath123 <shuvra.dev9@gmail.com>
 
-## 📦 Commit Details
+## Commit Message
 
-### Commit Hash
 ```
-d882dc9
-```
+Add LinkedIn integration and improve Twitter error handling
 
-### Commit Message
-```
-feat: Implement chatbot reply API for admin responses
-```
+Features:
+- LinkedIn OAuth 2.0 integration with personal profile posting
+- Media upload support for LinkedIn (images, videos)
+- Multi-account support for LinkedIn connections
+- Encrypted token storage with 60-day expiry tracking
+- UGC Posts API integration for public posting
 
-### Remote Repository
-```
-https://github.com/subratanath123/N8N-OpenAI-Chat-Agent-Microservice.git
-```
+Twitter improvements:
+- Enhanced 402 Payment Required error handling
+- Clear, actionable error messages for API access issues
+- Added HttpStatus checking for better error categorization
+- Comprehensive documentation for Twitter API limitations
 
----
+Chatbot enhancements:
+- Per-chatbot statistics (totalConversations, totalMessages)
+- Fixed conversation counting using MongoDB aggregation
+- Added dedicated stats endpoint GET /v1/api/chatbot/{chatbotId}/stats
+- Enhanced list endpoint with per-chatbot stats
+- Default assistant chatbots auto-initialization on startup
+- Vector index creation for default assistants
+- Widget theme support (colors, position, avatar)
+- Avatar resolution (preset URLs vs custom uploads)
+- Chatbot operations (delete, toggle status)
 
-## 📊 Changes Summary
+New endpoints:
+- POST /v1/api/social-accounts/linkedin - Connect LinkedIn account
+- GET /v1/api/chatbot/{chatbotId}/stats - Get chatbot statistics
+- DELETE /v1/api/chatbot/{id} - Delete chatbot
+- PUT /v1/api/chatbot/{id}/toggle - Toggle chatbot status
 
-### Statistics
-- **Files Changed:** 11
-- **Insertions:** 2,939 lines
-- **Deletions:** 2 lines
-- **Net Change:** +2,937 lines
+Documentation:
+- LINKEDIN_INTEGRATION.md - Complete LinkedIn implementation guide
+- TWITTER_402_ERROR_GUIDE.md - Twitter API access troubleshooting
+- PER_CHATBOT_STATS_IMPLEMENTATION.md - Statistics counting fix
+- DEFAULT_ASSISTANTS_DOCUMENTATION.md - Auto-initialized chatbots
+- BACKEND_CHATBOT_OPERATIONS.md - Chatbot management APIs
 
----
-
-## 📁 Files in This Commit
-
-### New Files Created (8)
-
-#### 1. Java Source Files (2)
-- `src/main/java/net/ai/chatbot/dto/ChatbotReplyRequest.java`
-- `src/main/java/net/ai/chatbot/dto/ChatbotReplyResponse.java`
-
-#### 2. Documentation Files (6)
-- `CHATBOT_REPLY_API_IMPLEMENTATION.md`
-- `CHATBOT_REPLY_API_QUICK_REFERENCE.md`
-- `CHATBOT_REPLY_COMPLETE_SOLUTION.md`
-- `CHATBOT_REPLY_FIX_USER_EMAIL.md`
-- `CHATBOT_REPLY_PUBLIC_ENDPOINT_FIX.md`
-- `TEST_CHATBOT_REPLY_API.md`
-
-### Modified Files (3)
-- `src/main/java/net/ai/chatbot/dto/UserChatHistory.java`
-- `src/main/java/net/ai/chatbot/controller/AuthenticatedUserChatN8NController.java`
-- `src/main/java/net/ai/chatbot/service/aichatbot/ChatBotService.java`
-
----
-
-## 🎯 What This Commit Includes
-
-### Core Features
-1. **REST API Endpoint**
-   - POST `/v1/api/n8n/authenticated/chatbot-reply`
-   - JWT authentication via Clerk OAuth2
-   - Request/response DTOs with validation
-
-2. **Service Layer**
-   - `saveAdminReply()` - Save admin reply with proper email
-   - `getConversationUserEmail()` - Fetch conversation user's email
-   - Updated `getChatHistory()` - Fix email filtering for public endpoint
-
-3. **Data Model Updates**
-   - Added fields to `UserChatHistory`: chatbotId, role, senderType, adminUserId, status
-
-### Critical Fixes
-
-#### Fix #1: User Email in Admin Replies
-- **Problem:** Admin replies stored with admin's email
-- **Solution:** Use conversation user's email for visibility
-- **Impact:** Authenticated users can now see admin replies
-
-#### Fix #2: Public Endpoint Filtering
-- **Problem:** Public endpoint filtered by `email = null`
-- **Solution:** Skip email filter for unauthenticated requests
-- **Impact:** Public endpoint returns all messages including admin replies
-
-### Security & Validation
-- JWT token validation
-- Chatbot ownership verification
-- Input validation (message length ≤ 10,000 chars)
-- Role validation (must be "assistant")
-- Conversation existence check
-- Error handling (400, 401, 403, 404, 500)
-
-### Documentation
-- Complete API implementation guide
-- Quick reference for developers
-- Comprehensive test cases (10 scenarios)
-- Fix documentation for troubleshooting
-- Complete solution summary
-
----
-
-## 🔄 Deployment Steps
-
-### 1. Pull Latest Changes
-```bash
-cd /path/to/your/project
-git pull origin master
+Technical changes:
+- Updated SocialAccount entity with LinkedIn fields
+- Added LinkedInPublisher service for API integration
+- Enhanced SocialPostPublisher with LinkedIn support
+- Improved TokenResolutionResponse with LinkedIn data
+- Fixed MongoDB aggregation for conversation counting
+- Added CommandLineRunner for default chatbot initialization
 ```
 
-### 2. Build the Project
-```bash
-./gradlew clean build
-```
+## Statistics
 
-### 3. Run Tests (if any)
-```bash
-./gradlew test
-```
+**Files Changed**: 48 files  
+**Insertions**: +6,330 lines  
+**Deletions**: -59 lines  
+**Net Change**: +6,271 lines
 
-### 4. Start the Server
-```bash
-./gradlew bootRun
-# or
-java -jar build/libs/your-app.jar
-```
+## New Files Created (30 files)
 
-### 5. Verify Deployment
-```bash
-# Test the health endpoint
-curl http://localhost:8080/actuator/health
+### Documentation (18 files)
+1. `AVATAR_RESOLUTION_IMPLEMENTATION.md`
+2. `AVATAR_RESOLUTION_SUMMARY.md`
+3. `BACKEND_CHATBOT_OPERATIONS.md`
+4. `CHATBOT_OPERATIONS_SUMMARY.md`
+5. `CHATBOT_WIDGET_THEME_SUPPORT.md`
+6. `DEFAULT_ASSISTANTS_DOCUMENTATION.md`
+7. `DEFAULT_ASSISTANTS_SUMMARY.md`
+8. `LINKEDIN_INTEGRATION.md`
+9. `LINKEDIN_INTEGRATION_SUMMARY.md`
+10. `PER_CHATBOT_STATS_IMPLEMENTATION.md`
+11. `PER_CHATBOT_STATS_SUMMARY.md`
+12. `STATISTICS_FIX.md`
+13. `STATISTICS_FIX_SUMMARY.md`
+14. `TWITTER_402_ERROR_GUIDE.md`
+15. `TWITTER_402_ERROR_SUMMARY.md`
+16. `VECTOR_INDEX_SETUP.md`
+17. `VECTOR_INDEX_SUMMARY.md`
+18. `WIDGET_THEME_IMPLEMENTATION_SUMMARY.md`
 
-# Test the chatbot reply endpoint
-curl -X POST "http://localhost:8080/v1/api/n8n/authenticated/chatbot-reply" \
-  -H "Authorization: Bearer YOUR_JWT_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "conversationId": "test_conv_123",
-    "chatbotId": "test_chatbot_456",
-    "message": "Test admin reply",
-    "role": "assistant"
-  }'
-```
+### Database Scripts (1 file)
+19. `mongodb-default-assistants.js`
 
----
+### Java Source Files (11 files)
 
-## 🧪 Testing Checklist
+#### DTOs
+20. `src/main/java/net/ai/chatbot/dto/aichatbot/ChatBotListItemResponse.java`
+21. `src/main/java/net/ai/chatbot/dto/aichatbot/ChatBotStatsItemResponse.java`
+22. `src/main/java/net/ai/chatbot/dto/aichatbot/ChatBotStatsResponse.java`
+23. `src/main/java/net/ai/chatbot/dto/aichatbot/ChatBotToggleRequest.java`
+24. `src/main/java/net/ai/chatbot/dto/aichatbot/ChatbotWidgetThemeDto.java`
+25. `src/main/java/net/ai/chatbot/dto/aichatbot/PublicChatbotResponseDto.java`
+26. `src/main/java/net/ai/chatbot/dto/social/LinkedInConnectRequest.java`
+27. `src/main/java/net/ai/chatbot/dto/social/LinkedInConnectResponse.java`
 
-After deployment, test these scenarios:
+#### Services
+28. `src/main/java/net/ai/chatbot/service/social/publisher/LinkedInPublisher.java`
+29. `src/main/java/net/ai/chatbot/service/startup/DefaultAssistantsInitializer.java`
 
-- [ ] Send admin reply via API (authenticated)
-- [ ] View conversation via public endpoint
-- [ ] View conversation as authenticated user
-- [ ] View conversation as admin
-- [ ] Test all error cases (401, 403, 404, 400)
-- [ ] Verify message appears in MongoDB
-- [ ] Verify admin reply has correct email field
-- [ ] Verify adminUserId tracks the admin
+#### File Rename
+30. Renamed: `FileUpload.java` → `SecureFileUpload.java`
 
----
+## Modified Files (19 files)
 
-## 📋 Database Changes
+### Controllers (5 files)
+1. `src/main/java/net/ai/chatbot/controller/AttachmentDownloadController.java`
+2. `src/main/java/net/ai/chatbot/controller/aichatbot/AIChatBotController.java`
+3. `src/main/java/net/ai/chatbot/controller/aichatbot/AIChatBotPublicEndpointController.java`
+4. `src/main/java/net/ai/chatbot/controller/file/FileUploadController.java`
+5. `src/main/java/net/ai/chatbot/controller/social/SocialAccountController.java`
 
-### Collection: `n8n_chat_session_histories`
+### DTOs (4 files)
+6. `src/main/java/net/ai/chatbot/dto/SecureFileUpload.java`
+7. `src/main/java/net/ai/chatbot/dto/aichatbot/ChatBotCreationRequest.java`
+8. `src/main/java/net/ai/chatbot/dto/aichatbot/ChatBotCreationResponse.java`
+9. `src/main/java/net/ai/chatbot/dto/social/TokenResolutionResponse.java`
 
-New document structure for admin replies:
-```json
-{
-  "_id": "msg_timestamp_uuid",
-  "conversationid": "session_id",
-  "chatbotId": "chatbot_id",
-  "email": "user@example.com",           // User's email (not admin's)
-  "aiMessage": "Admin reply message",
-  "userMessage": null,
-  "role": "assistant",
-  "senderType": "admin_reply",
-  "adminUserId": "admin@company.com",    // Admin's email
-  "status": "sent",
-  "mode": "admin",
-  "isAnonymous": false,
-  "createdAt": "2026-02-11T10:00:00Z"
-}
-```
+### Entities (2 files)
+10. `src/main/java/net/ai/chatbot/entity/ChatBot.java`
+11. `src/main/java/net/ai/chatbot/entity/social/SocialAccount.java`
 
----
+### Services (8 files)
+12. `src/main/java/net/ai/chatbot/service/AttachmentStorageService.java`
+13. `src/main/java/net/ai/chatbot/service/aichatbot/ChatBotService.java`
+14. `src/main/java/net/ai/chatbot/service/aichatbot/FileUploadService.java`
+15. `src/main/java/net/ai/chatbot/service/n8n/GenericN8NService.java`
+16. `src/main/java/net/ai/chatbot/service/redis/KnowledgebaseProcessor.java`
+17. `src/main/java/net/ai/chatbot/service/social/SocialAccountService.java`
+18. `src/main/java/net/ai/chatbot/service/social/publisher/SocialPostPublisher.java`
+19. `src/main/java/net/ai/chatbot/service/social/publisher/TwitterPublisher.java`
 
-## 🔍 Monitoring & Verification
+## Key Features Summary
 
-### Check Logs
-```bash
-# Look for admin reply logs
-grep "Admin reply saved successfully" /path/to/logs/application.log
+### 1. LinkedIn Integration ✅
+- **OAuth 2.0 Support**: Store access tokens with 60-day expiry
+- **Personal Profile Posting**: UGC Posts API integration
+- **Media Upload**: Images and videos with proper LinkedIn upload flow
+- **Multi-Account**: Multiple LinkedIn accounts per user
+- **Encryption**: AES-256-GCM token encryption
+- **Error Handling**: Token expiry detection and clear error messages
 
-# Check for errors
-grep "ERROR" /path/to/logs/application.log | tail -n 50
-```
+### 2. Twitter Error Handling ✅
+- **402 Payment Required**: Detailed explanation and upgrade instructions
+- **Error Categorization**: HttpStatus-based error handling
+- **User-Friendly Messages**: Actionable error messages with links
+- **Documentation**: Comprehensive troubleshooting guide
 
-### Query MongoDB
-```javascript
-// Find recent admin replies
-db.n8n_chat_session_histories.find({
-  senderType: "admin_reply"
-}).sort({ createdAt: -1 }).limit(10).pretty();
+### 3. Chatbot Statistics ✅
+- **Per-Chatbot Stats**: `totalConversations` and `totalMessages`
+- **Fixed Counting**: MongoDB aggregation for accurate conversation counts
+- **New Endpoints**: Dedicated stats endpoint for individual chatbots
+- **Enhanced List**: Stats included in chatbot list response
 
-// Verify email field is correct (should be user's email, not admin's)
-db.n8n_chat_session_histories.findOne({
-  senderType: "admin_reply"
-}, {
-  email: 1,
-  adminUserId: 1,
-  senderType: 1
-});
-```
+### 4. Default Assistants ✅
+- **Auto-Initialization**: 8 pre-configured assistant chatbots
+- **CommandLineRunner**: Runs on application startup
+- **Vector Indexes**: Automatic collection and index creation
+- **Meaningful Content**: Domain-specific instructions and Q&A pairs
 
----
+### 5. Widget Enhancements ✅
+- **Theme Support**: Custom colors, position, avatar
+- **Avatar Resolution**: Preset URLs vs custom file uploads
+- **Status Management**: Active/disabled chatbot states
+- **Public API**: Enhanced with theme and status data
 
-## 🚨 Rollback Plan (If Needed)
+## Remote Repository
 
-If issues occur, rollback to previous commit:
+**Repository**: https://github.com/subratanath123/N8N-OpenAI-Chat-Agent-Microservice.git  
+**Branch**: master  
+**Status**: Successfully pushed ✅
+
+## Verification
 
 ```bash
-# Find previous commit
-git log --oneline -5
+$ git status
+On branch master
+Your branch is up to date with 'origin/master'.
 
-# Rollback (replace PREVIOUS_COMMIT_HASH)
-git revert d882dc9
-
-# Or hard reset (CAREFUL - loses changes)
-git reset --hard dc7ebce  # Previous commit
-
-# Force push (only if necessary)
-git push origin master --force
+nothing to commit, working tree clean
 ```
 
----
+## Next Steps
 
-## 📞 Support & Documentation
+1. **Testing**: Test LinkedIn integration with real OAuth tokens
+2. **Frontend Integration**: Update frontend to support LinkedIn connections
+3. **Token Refresh**: Monitor token expiry and prompt users to reconnect
+4. **Rate Limiting**: Implement client-side rate limiting for LinkedIn API
+5. **Analytics**: Track LinkedIn post performance
 
-### Quick Links
-- **API Documentation:** `CHATBOT_REPLY_API_IMPLEMENTATION.md`
-- **Quick Reference:** `CHATBOT_REPLY_API_QUICK_REFERENCE.md`
-- **Test Cases:** `TEST_CHATBOT_REPLY_API.md`
-- **Fix #1 Details:** `CHATBOT_REPLY_FIX_USER_EMAIL.md`
-- **Fix #2 Details:** `CHATBOT_REPLY_PUBLIC_ENDPOINT_FIX.md`
-- **Complete Summary:** `CHATBOT_REPLY_COMPLETE_SOLUTION.md`
+## Related Documentation
 
-### Endpoints
-- **Admin Reply:** `POST /v1/api/n8n/authenticated/chatbot-reply`
-- **Public View:** `GET /v1/api/public/chatHistory/{chatbotId}/{conversationId}`
-- **Authenticated View:** `POST /v1/api/n8n/authenticated/chatHistory/{chatbotId}/{conversationId}`
-
----
-
-## ✅ Acceptance Criteria Met
-
-- [x] Code committed to git
-- [x] Changes pushed to remote repository
-- [x] Comprehensive commit message
-- [x] All files included
-- [x] Documentation complete
-- [x] No linter errors
-- [x] Ready for deployment
+All documentation files are now in the repository:
+- See `LINKEDIN_INTEGRATION.md` for complete LinkedIn implementation details
+- See `TWITTER_402_ERROR_GUIDE.md` for Twitter API access troubleshooting
+- See `DEFAULT_ASSISTANTS_DOCUMENTATION.md` for assistant chatbot details
+- See individual `*_SUMMARY.md` files for quick references
 
 ---
 
-## 🎉 Summary
-
-**Commit `d882dc9` successfully pushed to master branch!**
-
-This commit includes:
-- ✅ Complete chatbot reply API implementation
-- ✅ Two critical fixes for message visibility
-- ✅ Comprehensive documentation and test cases
-- ✅ 11 files changed, 2,939 lines added
-
-**Next Steps:**
-1. Pull changes on deployment server
-2. Build and test
-3. Deploy to production
-4. Monitor logs and verify functionality
-
----
-
-**Status:** ✅ Successfully Committed and Pushed  
-**Commit Hash:** `d882dc9`  
-**Date:** February 11, 2026  
-**Branch:** `master`  
-**Repository:** https://github.com/subratanath123/N8N-OpenAI-Chat-Agent-Microservice.git
-
-
+**Commit pushed successfully to remote repository** ✅

@@ -35,6 +35,13 @@ public class AuthUtils {
                 : (String) authenticationToken.getTokenAttributes().get("email");
     }
 
+    /**
+     * Get user email from JWT (alias for getEmail for consistency)
+     */
+    public static String getUserEmail() {
+        return getEmail();
+    }
+
     public static boolean isAdmin() {
         return "shuvra.dev9@gmail.com".equals(getEmail());
     }

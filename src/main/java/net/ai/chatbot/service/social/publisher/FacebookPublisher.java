@@ -134,6 +134,7 @@ public class FacebookPublisher {
 
     /**
      * Upload a single media item to Facebook and return the Facebook media ID.
+     * Handles both Attachment-based (SocialAsset) and CDN-based (MediaAsset) media.
      */
     private String uploadMediaToFacebook(String pageId, String pageAccessToken, 
                                         MediaItem mediaItem) {
@@ -141,11 +142,26 @@ public class FacebookPublisher {
             log.info("Uploading media {} ({}) to Facebook page {}", 
                     mediaItem.getMediaId(), mediaItem.getMimeType(), pageId);
 
-            // Download media from our storage
-            byte[] mediaBytes = attachmentStorageService.getFileContent(mediaItem.getMediaId());
+            byte[] mediaBytes;
+            
+            // Try Attachment storage first (SocialAsset from /v1/api/social-media/upload)
+            mediaBytes = attachmentStorageService.getFileContent(mediaItem.getMediaId());
+            
+            // If not found in Attachment, use mediaUrl directly (MediaAsset from /v1/api/assets/upload)
             if (mediaBytes == null || mediaBytes.length == 0) {
-                log.error("Media file not found or empty: {}", mediaItem.getMediaId());
-                return null;
+                if (mediaItem.getMediaUrl() != null && !mediaItem.getMediaUrl().isEmpty()) {
+                    log.info("Media not in attachment storage, using CDN URL: {}", mediaItem.getMediaUrl());
+                    // For CDN URLs, download from the URL
+                    try {
+                        mediaBytes = downloadFromUrl(mediaItem.getMediaUrl());
+                    } catch (Exception e) {
+                        log.error("Failed to download media from URL: {}", mediaItem.getMediaUrl(), e);
+                        return null;
+                    }
+                } else {
+                    log.error("Media file not found or empty: {}", mediaItem.getMediaId());
+                    return null;
+                }
             }
 
             log.info("Downloaded media {} - size: {} bytes", mediaItem.getMediaId(), mediaBytes.length);
@@ -206,6 +222,20 @@ public class FacebookPublisher {
             log.error("Failed to upload media {} to Facebook: {}", mediaItem.getMediaId(), e.getMessage(), e);
             throw new PublishException("Facebook media upload failed: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Download media from a URL (for MediaAsset CDN URLs)
+     */
+    private byte[] downloadFromUrl(String url) throws Exception {
+        return webClientBuilder
+                .codecs(config -> config.defaultCodecs().maxInMemorySize(50 * 1024 * 1024)) // 50MB limit
+                .build()
+                .get()
+                .uri(url)
+                .retrieve()
+                .bodyToMono(byte[].class)
+                .block();
     }
 
     private record FacebookPostResponse(String id) {}

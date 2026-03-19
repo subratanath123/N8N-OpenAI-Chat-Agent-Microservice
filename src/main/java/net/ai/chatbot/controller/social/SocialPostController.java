@@ -3,9 +3,10 @@ package net.ai.chatbot.controller.social;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import net.ai.chatbot.dao.MediaAssetDao;
+import net.ai.chatbot.dao.SocialAssetDao;
 import net.ai.chatbot.dto.social.*;
 import net.ai.chatbot.entity.social.SocialPost;
-import net.ai.chatbot.service.AttachmentStorageService;
 import net.ai.chatbot.service.social.SocialAccountService;
 import net.ai.chatbot.service.social.publisher.SocialPostPublisher;
 import net.ai.chatbot.utils.AuthUtils;
@@ -16,6 +17,7 @@ import java.util.Map;
 
 /**
  * Social post scheduling API.
+ * Accepts media from both /v1/api/social-media/upload (SocialAsset) and /v1/api/assets/upload (MediaAsset)
  */
 @RestController
 @RequestMapping("/v1/api/social-posts")
@@ -25,7 +27,8 @@ public class SocialPostController {
 
     private final SocialAccountService socialAccountService;
     private final SocialPostPublisher socialPostPublisher;
-    private final AttachmentStorageService attachmentStorageService;
+    private final SocialAssetDao socialAssetDao;
+    private final MediaAssetDao mediaAssetDao;
 
     /**
      * 6) Schedule Post
@@ -43,6 +46,7 @@ public class SocialPostController {
         }
         
         // Verify ownership of all media items
+        String userEmail = AuthUtils.getUserEmail();
         if (request.getMedia() != null && !request.getMedia().isEmpty()) {
             for (net.ai.chatbot.dto.social.MediaItem mediaItem : request.getMedia()) {
                 String mediaId = mediaItem.getMediaId();
@@ -53,8 +57,12 @@ public class SocialPostController {
                     ));
                 }
                 
-                if (!attachmentStorageService.verifyOwnership(mediaId, userId)) {
-                    log.warn("User {} attempted to use media {} they don't own", userId, mediaId);
+                // Check both SocialAsset (from /v1/api/social-media/upload) and MediaAsset (from /v1/api/assets/upload)
+                boolean isSocialAsset = socialAssetDao.findByIdAndUserEmail(mediaId, userEmail).isPresent();
+                boolean isMediaAsset = mediaAssetDao.findByIdAndUserEmail(mediaId, userEmail).isPresent();
+                
+                if (!isSocialAsset && !isMediaAsset) {
+                    log.warn("User {} attempted to use media {} they don't own", userEmail, mediaId);
                     return ResponseEntity.status(403).body(Map.of(
                             "error", "Forbidden",
                             "message", "You do not have permission to use media: " + mediaId
