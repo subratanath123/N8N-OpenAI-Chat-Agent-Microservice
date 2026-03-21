@@ -9,9 +9,12 @@ import net.ai.chatbot.dto.mcp.McpToolsResponse;
 import net.ai.chatbot.entity.WorkflowConfig.ActionEndpoint;
 import net.ai.chatbot.service.workflow.McpExecutorService;
 import net.ai.chatbot.service.workflow.WorkflowConfigService;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -20,15 +23,18 @@ import java.util.Map;
 /**
  * MCP JSON-RPC 2.0 server for workflow-based action tools.
  *
- * Endpoint: POST /mcp/workflow/{chatbotId}
- * Health:   GET  /mcp/workflow/{chatbotId}/health
+ * Transport: HTTP + SSE (MCP spec 2024-11-05)
  *
- * Any MCP-compatible agent can connect to this URL and:
- *   1. Call tools/list  → get the chatbot's configured action tools
- *   2. Call tools/call  → backend executes the business endpoint with collected params
+ * Step 1 — N8N connects:
+ *   GET /mcp/workflow/{chatbotId}/sse
+ *   → Server sends SSE event: endpoint → /mcp/workflow/{chatbotId}/messages
  *
- * The tool list is generated dynamically from the chatbot's WorkflowConfig,
- * so adding/removing actions instantly updates what agents see.
+ * Step 2 — N8N sends messages:
+ *   POST /mcp/workflow/{chatbotId}/messages  (JSON-RPC 2.0)
+ *   → initialize, tools/list, tools/call
+ *
+ * Also supports direct POST (without SSE) for testing:
+ *   POST /mcp/workflow/{chatbotId}
  */
 @RestController
 @RequestMapping("/mcp/workflow/{chatbotId}")
@@ -46,14 +52,68 @@ public class McpWorkflowRestController {
         this.objectMapper = new ObjectMapper();
     }
 
-    // ─── JSON-RPC 2.0 dispatcher ──────────────────────────────────────────
+    // ─── SSE handshake (N8N connects here first) ──────────────────────────
 
+    /**
+     * GET /mcp/workflow/{chatbotId}/sse
+     *
+     * N8N MCP client connects to this endpoint to establish the SSE channel.
+     * Server immediately sends an "endpoint" event telling N8N where to POST messages,
+     * then keeps the connection alive.
+     */
+    @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+    public SseEmitter sse(@PathVariable String chatbotId, HttpServletRequest httpRequest) {
+        SseEmitter emitter = new SseEmitter(300_000L); // 5-minute timeout
+
+        String messagesUrl = buildBaseUrl(httpRequest) + "/mcp/workflow/" + chatbotId + "/messages";
+        log.info("MCP Workflow [{}] SSE connection established, messages endpoint: {}", chatbotId, messagesUrl);
+
+        try {
+            // MCP spec: send "endpoint" event with the POST URL for JSON-RPC messages
+            emitter.send(SseEmitter.event()
+                    .name("endpoint")
+                    .data(messagesUrl));
+        } catch (IOException e) {
+            log.warn("MCP Workflow [{}] SSE send failed: {}", chatbotId, e.getMessage());
+            emitter.completeWithError(e);
+        }
+
+        // Keep connection open; N8N will POST messages separately
+        emitter.onTimeout(emitter::complete);
+        emitter.onError(err -> log.debug("MCP Workflow [{}] SSE error: {}", chatbotId, err.getMessage()));
+
+        return emitter;
+    }
+
+    // ─── JSON-RPC message handler (N8N POSTs here after SSE handshake) ────
+
+    /**
+     * POST /mcp/workflow/{chatbotId}/messages
+     * The primary message endpoint advertised via SSE.
+     */
+    @PostMapping("/messages")
+    public ResponseEntity<Map<String, Object>> messages(
+            @PathVariable String chatbotId,
+            @RequestBody Map<String, Object> request,
+            HttpServletRequest httpRequest) {
+        return dispatch(chatbotId, request);
+    }
+
+    /**
+     * POST /mcp/workflow/{chatbotId}
+     * Direct endpoint — useful for testing without SSE handshake.
+     */
     @PostMapping
     public ResponseEntity<Map<String, Object>> handle(
             @PathVariable String chatbotId,
             @RequestBody Map<String, Object> request,
             HttpServletRequest httpRequest) {
+        return dispatch(chatbotId, request);
+    }
 
+    // ─── JSON-RPC dispatcher ──────────────────────────────────────────────
+
+    private ResponseEntity<Map<String, Object>> dispatch(String chatbotId, Map<String, Object> request) {
         String jsonrpc = (String) request.get("jsonrpc");
         String method  = (String) request.get("method");
         Object id      = request.get("id");
@@ -72,9 +132,10 @@ public class McpWorkflowRestController {
         }
 
         return switch (method) {
-            case "initialize"              -> ok(success(id, buildInitializeResult(chatbotId)));
-            case "tools/list", "tools.list" -> handleToolsList(chatbotId, id);
-            case "tools/call", "tools.call" -> handleToolsCall(chatbotId, id, params);
+            case "initialize"               -> ok(success(id, buildInitializeResult(chatbotId)));
+            case "notifications/initialized" -> ok(success(id, Map.of())); // ack
+            case "tools/list", "tools.list"  -> handleToolsList(chatbotId, id);
+            case "tools/call", "tools.call"  -> handleToolsCall(chatbotId, id, params);
             default -> ok(error(id, -32601, "Method not found: " + method, null));
         };
     }
@@ -105,7 +166,6 @@ public class McpWorkflowRestController {
                 Map<String, Object> mcpTool = new LinkedHashMap<>();
                 mcpTool.put("name", fn.getName());
                 mcpTool.put("description", fn.getDescription());
-                // MCP uses "inputSchema"; content mirrors the OpenAI "parameters" schema
                 mcpTool.put("inputSchema", toInputSchema(fn.getParameters()));
                 tools.add(mcpTool);
             }
@@ -148,7 +208,6 @@ public class McpWorkflowRestController {
         log.info("MCP Workflow [{}] tools/call: tool='{}' args={}", chatbotId, toolName, arguments.keySet());
 
         try {
-            // Resolve action by tool name, get its id for the executor
             ActionEndpoint action = workflowConfigService.findActionByToolName(chatbotId, toolName);
 
             McpExecuteRequest execRequest = McpExecuteRequest.builder()
@@ -161,7 +220,6 @@ public class McpWorkflowRestController {
 
             McpExecuteResponse execResponse = mcpExecutorService.execute(chatbotId, execRequest);
 
-            // Build MCP content response
             String text = execResponse.isSuccess()
                     ? buildSuccessText(execResponse)
                     : buildFailureText(execResponse);
@@ -189,6 +247,47 @@ public class McpWorkflowRestController {
         }
     }
 
+    // ─── Health ───────────────────────────────────────────────────────────
+
+    @GetMapping("/health")
+    public ResponseEntity<Map<String, Object>> health(@PathVariable String chatbotId) {
+        try {
+            McpToolsResponse tools = workflowConfigService.getTools(chatbotId);
+            List<String> toolNames = tools.getTools().stream()
+                    .map(t -> t.getFunction().getName())
+                    .toList();
+            return ResponseEntity.ok(Map.of(
+                    "status", "UP",
+                    "service", "Workflow MCP Server",
+                    "chatbotId", chatbotId,
+                    "sseEndpoint", "/mcp/workflow/" + chatbotId + "/sse",
+                    "messagesEndpoint", "/mcp/workflow/" + chatbotId + "/messages",
+                    "availableTools", toolNames,
+                    "toolCount", toolNames.size()
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.ok(Map.of(
+                    "status", "UP",
+                    "service", "Workflow MCP Server",
+                    "chatbotId", chatbotId,
+                    "note", "No workflow configured"
+            ));
+        }
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────
+
+    private String buildBaseUrl(HttpServletRequest request) {
+        String scheme = request.getScheme();
+        String host   = request.getServerName();
+        int port      = request.getServerPort();
+        boolean defaultPort = ("http".equals(scheme) && port == 80)
+                           || ("https".equals(scheme) && port == 443);
+        String base = scheme + "://" + host + (defaultPort ? "" : ":" + port);
+        String ctx  = request.getContextPath();
+        return (ctx != null && !ctx.isBlank()) ? base + ctx : base;
+    }
+
     private String buildSuccessText(McpExecuteResponse r) {
         StringBuilder sb = new StringBuilder();
         if (r.getMessage() != null) sb.append(r.getMessage()).append("\n\n");
@@ -208,35 +307,6 @@ public class McpWorkflowRestController {
         if (r.getError() != null) sb.append("\n\nError: ").append(r.getError());
         return sb.toString().trim();
     }
-
-    // ─── Health ───────────────────────────────────────────────────────────
-
-    @GetMapping("/health")
-    public ResponseEntity<Map<String, Object>> health(@PathVariable String chatbotId) {
-        try {
-            McpToolsResponse tools = workflowConfigService.getTools(chatbotId);
-            List<String> toolNames = tools.getTools().stream()
-                    .map(t -> t.getFunction().getName())
-                    .toList();
-            return ResponseEntity.ok(Map.of(
-                    "status", "UP",
-                    "service", "Workflow MCP Server",
-                    "chatbotId", chatbotId,
-                    "availableTools", toolNames,
-                    "toolCount", toolNames.size()
-            ));
-        } catch (Exception e) {
-            return ResponseEntity.ok(Map.of(
-                    "status", "UP",
-                    "service", "Workflow MCP Server",
-                    "chatbotId", chatbotId,
-                    "availableTools", List.of(),
-                    "note", "No workflow configured"
-            ));
-        }
-    }
-
-    // ─── Helpers ──────────────────────────────────────────────────────────
 
     private String stringArg(Map<String, Object> args, String key) {
         Object v = args.get(key);
