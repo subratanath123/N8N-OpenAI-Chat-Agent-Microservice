@@ -1,7 +1,6 @@
 package net.ai.chatbot.mcp.workflow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.mcp.McpExecuteRequest;
 import net.ai.chatbot.dto.mcp.McpExecuteResponse;
@@ -9,12 +8,10 @@ import net.ai.chatbot.dto.mcp.McpToolsResponse;
 import net.ai.chatbot.entity.WorkflowConfig.ActionEndpoint;
 import net.ai.chatbot.service.workflow.McpExecutorService;
 import net.ai.chatbot.service.workflow.WorkflowConfigService;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+import reactor.core.publisher.Mono;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -23,22 +20,15 @@ import java.util.Map;
 /**
  * MCP JSON-RPC 2.0 server for workflow-based action tools.
  *
- * Transport: HTTP + SSE (MCP spec 2024-11-05)
+ * Main endpoint: POST /mcp/workflow/{chatbotId}
+ * Health check:  GET  /mcp/workflow/{chatbotId}/health
  *
- * Step 1 — N8N connects:
- *   GET /mcp/workflow/{chatbotId}/sse
- *   → Server sends SSE event: endpoint → /mcp/workflow/{chatbotId}/messages
- *
- * Step 2 — N8N sends messages:
- *   POST /mcp/workflow/{chatbotId}/messages  (JSON-RPC 2.0)
- *   → initialize, tools/list, tools/call
- *
- * Also supports direct POST (without SSE) for testing:
- *   POST /mcp/workflow/{chatbotId}
+ * N8N MCP Client Tool connects to: POST /mcp/workflow/{chatbotId}
+ * Tool list is generated dynamically from the chatbot's saved WorkflowConfig actions.
  */
+@Slf4j
 @RestController
 @RequestMapping("/mcp/workflow/{chatbotId}")
-@Slf4j
 public class McpWorkflowRestController {
 
     private final WorkflowConfigService workflowConfigService;
@@ -52,98 +42,48 @@ public class McpWorkflowRestController {
         this.objectMapper = new ObjectMapper();
     }
 
-    // ─── SSE handshake (N8N connects here first) ──────────────────────────
-
-    /**
-     * GET /mcp/workflow/{chatbotId}/sse
-     *
-     * N8N MCP client connects to this endpoint to establish the SSE channel.
-     * Server immediately sends an "endpoint" event telling N8N where to POST messages,
-     * then keeps the connection alive.
-     */
-    @GetMapping(value = "/sse", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public SseEmitter sse(@PathVariable String chatbotId, HttpServletRequest httpRequest) {
-        SseEmitter emitter = new SseEmitter(300_000L); // 5-minute timeout
-
-        String messagesUrl = buildBaseUrl(httpRequest) + "/mcp/workflow/" + chatbotId + "/messages";
-        log.info("MCP Workflow [{}] SSE connection established, messages endpoint: {}", chatbotId, messagesUrl);
-
-        try {
-            // MCP spec: send "endpoint" event with the POST URL for JSON-RPC messages
-            emitter.send(SseEmitter.event()
-                    .name("endpoint")
-                    .data(messagesUrl));
-        } catch (IOException e) {
-            log.warn("MCP Workflow [{}] SSE send failed: {}", chatbotId, e.getMessage());
-            emitter.completeWithError(e);
-        }
-
-        // Keep connection open; N8N will POST messages separately
-        emitter.onTimeout(emitter::complete);
-        emitter.onError(err -> log.debug("MCP Workflow [{}] SSE error: {}", chatbotId, err.getMessage()));
-
-        return emitter;
-    }
-
-    // ─── JSON-RPC message handler (N8N POSTs here after SSE handshake) ────
-
-    /**
-     * POST /mcp/workflow/{chatbotId}/messages
-     * The primary message endpoint advertised via SSE.
-     */
-    @PostMapping("/messages")
-    public ResponseEntity<Map<String, Object>> messages(
-            @PathVariable String chatbotId,
-            @RequestBody Map<String, Object> request,
-            HttpServletRequest httpRequest) {
-        return dispatch(chatbotId, request);
-    }
-
     /**
      * POST /mcp/workflow/{chatbotId}
-     * Direct endpoint — useful for testing without SSE handshake.
+     *
+     * JSON-RPC 2.0 dispatcher — the single entry point for N8N MCP Client Tool.
      */
     @PostMapping
-    public ResponseEntity<Map<String, Object>> handle(
+    public Mono<ResponseEntity<Map<String, Object>>> handleJsonRpc(
             @PathVariable String chatbotId,
-            @RequestBody Map<String, Object> request,
-            HttpServletRequest httpRequest) {
-        return dispatch(chatbotId, request);
-    }
+            @RequestBody Map<String, Object> request) {
 
-    // ─── JSON-RPC dispatcher ──────────────────────────────────────────────
-
-    private ResponseEntity<Map<String, Object>> dispatch(String chatbotId, Map<String, Object> request) {
         String jsonrpc = (String) request.get("jsonrpc");
         String method  = (String) request.get("method");
         Object id      = request.get("id");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> params = request.get("params") instanceof Map<?, ?>
-                ? (Map<String, Object>) request.get("params") : Map.of();
+        Map<String, Object> params = (Map<String, Object>) request.getOrDefault("params", Map.of());
 
-        log.info("MCP Workflow [{}] JSON-RPC: method='{}' id={}", chatbotId, method, id);
+        log.info("MCP Workflow [{}] JSON-RPC: method='{}', id={}", chatbotId, method, id);
 
         if (!"2.0".equals(jsonrpc)) {
-            return ok(error(id, -32600, "Invalid Request: jsonrpc must be '2.0'", null));
+            return Mono.just(ResponseEntity.badRequest()
+                    .body(createJsonRpcError(id, -32600, "Invalid Request: jsonrpc must be '2.0'", null)));
         }
         if (method == null || method.isBlank()) {
-            return ok(error(id, -32600, "Invalid Request: method is required", null));
+            return Mono.just(ResponseEntity.badRequest()
+                    .body(createJsonRpcError(id, -32600, "Invalid Request: method is required", null)));
         }
 
         return switch (method) {
-            case "initialize"               -> ok(success(id, buildInitializeResult(chatbotId)));
-            case "notifications/initialized" -> ok(success(id, Map.of())); // ack
-            case "tools/list", "tools.list"  -> handleToolsList(chatbotId, id);
-            case "tools/call", "tools.call"  -> handleToolsCall(chatbotId, id, params);
-            default -> ok(error(id, -32601, "Method not found: " + method, null));
+            case "initialize"               -> handleInitialize(chatbotId, id);
+            case "tools/list", "tools.list" -> handleToolsList(chatbotId, id);
+            case "tools/call", "tools.call" -> handleToolsCall(chatbotId, id, params);
+            default -> Mono.just(ResponseEntity.ok(
+                    createJsonRpcError(id, -32601, "Method not found: " + method, null)));
         };
     }
 
     // ─── initialize ───────────────────────────────────────────────────────
 
-    private Map<String, Object> buildInitializeResult(String chatbotId) {
-        return Map.of(
+    private Mono<ResponseEntity<Map<String, Object>>> handleInitialize(String chatbotId, Object id) {
+        log.info("MCP Workflow [{}]: Handling initialize", chatbotId);
+        Map<String, Object> result = Map.of(
                 "protocolVersion", "2024-11-05",
                 "capabilities", Map.of("tools", Map.of("listChanged", false)),
                 "serverInfo", Map.of(
@@ -152,11 +92,13 @@ public class McpWorkflowRestController {
                         "chatbotId", chatbotId
                 )
         );
+        return Mono.just(ResponseEntity.ok(createJsonRpcSuccess(id, result)));
     }
 
     // ─── tools/list ───────────────────────────────────────────────────────
 
-    private ResponseEntity<Map<String, Object>> handleToolsList(String chatbotId, Object id) {
+    private Mono<ResponseEntity<Map<String, Object>>> handleToolsList(String chatbotId, Object id) {
+        log.info("MCP Workflow [{}]: Handling tools/list", chatbotId);
         try {
             McpToolsResponse toolsResponse = workflowConfigService.getTools(chatbotId);
             List<Map<String, Object>> tools = new ArrayList<>();
@@ -170,12 +112,13 @@ public class McpWorkflowRestController {
                 tools.add(mcpTool);
             }
 
-            log.info("MCP Workflow [{}] tools/list: {} tools", chatbotId, tools.size());
-            return ok(success(id, Map.of("tools", tools)));
+            log.info("MCP Workflow [{}]: {} tool(s) available", chatbotId, tools.size());
+            return Mono.just(ResponseEntity.ok(createJsonRpcSuccess(id, Map.of("tools", tools))));
 
         } catch (Exception e) {
-            log.error("MCP Workflow [{}] tools/list error: {}", chatbotId, e.getMessage());
-            return ok(error(id, -32603, "Failed to list tools: " + e.getMessage(), null));
+            log.error("MCP Workflow [{}]: tools/list error: {}", chatbotId, e.getMessage());
+            return Mono.just(ResponseEntity.ok(
+                    createJsonRpcError(id, -32603, "Failed to list tools: " + e.getMessage(), null)));
         }
     }
 
@@ -192,22 +135,22 @@ public class McpWorkflowRestController {
 
     // ─── tools/call ───────────────────────────────────────────────────────
 
-    private ResponseEntity<Map<String, Object>> handleToolsCall(
+    private Mono<ResponseEntity<Map<String, Object>>> handleToolsCall(
             String chatbotId, Object id, Map<String, Object> params) {
 
         String toolName = (String) params.get("name");
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> arguments = params.get("arguments") instanceof Map<?, ?>
-                ? (Map<String, Object>) params.get("arguments") : Map.of();
+        Map<String, Object> arguments = (Map<String, Object>) params.getOrDefault("arguments", Map.of());
+
+        log.info("MCP Workflow [{}]: Calling tool '{}' with args: {}", chatbotId, toolName, arguments.keySet());
 
         if (toolName == null || toolName.isBlank()) {
-            return ok(error(id, -32602, "Missing required param: name", null));
+            return Mono.just(ResponseEntity.ok(
+                    createJsonRpcError(id, -32602, "Missing required param: name", null)));
         }
 
-        log.info("MCP Workflow [{}] tools/call: tool='{}' args={}", chatbotId, toolName, arguments.keySet());
-
-        try {
+        return Mono.fromCallable(() -> {
             ActionEndpoint action = workflowConfigService.findActionByToolName(chatbotId, toolName);
 
             McpExecuteRequest execRequest = McpExecuteRequest.builder()
@@ -230,21 +173,18 @@ public class McpWorkflowRestController {
             result.put("success", execResponse.isSuccess());
             result.put("statusCode", execResponse.getStatusCode());
             result.put("message", execResponse.getMessage());
-            if (execResponse.getResponseBody() != null) {
-                result.put("responseBody", execResponse.getResponseBody());
-            }
-            if (!execResponse.isSuccess() && execResponse.getError() != null) {
-                result.put("error", execResponse.getError());
-            }
+            if (execResponse.getResponseBody() != null) result.put("responseBody", execResponse.getResponseBody());
+            if (!execResponse.isSuccess() && execResponse.getError() != null) result.put("error", execResponse.getError());
 
-            return ok(success(id, result));
-
-        } catch (IllegalArgumentException e) {
-            return ok(error(id, -32602, e.getMessage(), null));
-        } catch (Exception e) {
-            log.error("MCP Workflow [{}] tools/call '{}' failed: {}", chatbotId, toolName, e.getMessage(), e);
-            return ok(error(id, -32603, "Tool execution failed: " + e.getMessage(), null));
-        }
+            return ResponseEntity.ok(createJsonRpcSuccess(id, result));
+        })
+        .onErrorResume(IllegalArgumentException.class, e ->
+                Mono.just(ResponseEntity.ok(createJsonRpcError(id, -32602, e.getMessage(), null))))
+        .onErrorResume(e -> {
+            log.error("MCP Workflow [{}]: tools/call '{}' failed: {}", chatbotId, toolName, e.getMessage(), e);
+            return Mono.just(ResponseEntity.ok(
+                    createJsonRpcError(id, -32603, "Tool execution failed: " + e.getMessage(), null)));
+        });
     }
 
     // ─── Health ───────────────────────────────────────────────────────────
@@ -260,8 +200,6 @@ public class McpWorkflowRestController {
                     "status", "UP",
                     "service", "Workflow MCP Server",
                     "chatbotId", chatbotId,
-                    "sseEndpoint", "/mcp/workflow/" + chatbotId + "/sse",
-                    "messagesEndpoint", "/mcp/workflow/" + chatbotId + "/messages",
                     "availableTools", toolNames,
                     "toolCount", toolNames.size()
             ));
@@ -270,23 +208,13 @@ public class McpWorkflowRestController {
                     "status", "UP",
                     "service", "Workflow MCP Server",
                     "chatbotId", chatbotId,
+                    "availableTools", List.of(),
                     "note", "No workflow configured"
             ));
         }
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────
-
-    private String buildBaseUrl(HttpServletRequest request) {
-        String scheme = request.getScheme();
-        String host   = request.getServerName();
-        int port      = request.getServerPort();
-        boolean defaultPort = ("http".equals(scheme) && port == 80)
-                           || ("https".equals(scheme) && port == 443);
-        String base = scheme + "://" + host + (defaultPort ? "" : ":" + port);
-        String ctx  = request.getContextPath();
-        return (ctx != null && !ctx.isBlank()) ? base + ctx : base;
-    }
 
     private String buildSuccessText(McpExecuteResponse r) {
         StringBuilder sb = new StringBuilder();
@@ -313,18 +241,14 @@ public class McpWorkflowRestController {
         return v instanceof String s ? s : null;
     }
 
-    private ResponseEntity<Map<String, Object>> ok(Map<String, Object> body) {
-        return ResponseEntity.ok(body);
-    }
-
-    private Map<String, Object> success(Object id, Map<String, Object> result) {
+    private Map<String, Object> createJsonRpcSuccess(Object id, Map<String, Object> result) {
         return Map.of("jsonrpc", "2.0", "result", result, "id", id != null ? id : 0);
     }
 
-    private Map<String, Object> error(Object id, int code, String message, Object data) {
-        Map<String, Object> err = data != null
+    private Map<String, Object> createJsonRpcError(Object id, int code, String message, Object data) {
+        Map<String, Object> error = data != null
                 ? Map.of("code", code, "message", message, "data", data)
                 : Map.of("code", code, "message", message);
-        return Map.of("jsonrpc", "2.0", "error", err, "id", id != null ? id : 0);
+        return Map.of("jsonrpc", "2.0", "error", error, "id", id != null ? id : 0);
     }
 }
