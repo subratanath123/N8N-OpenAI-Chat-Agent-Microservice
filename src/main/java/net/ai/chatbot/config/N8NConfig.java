@@ -4,6 +4,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -11,7 +12,14 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 @Configuration
 public class N8NConfig {
 
+    /** Plain RestTemplate for MCP executor — no N8N-specific interceptors */
+    @Bean("mcpRestTemplate")
+    public RestTemplate mcpRestTemplate() {
+        return new RestTemplate();
+    }
+
     @Bean
+    @Primary
     public RestTemplate n8nRestTemplate() {
         RestTemplate restTemplate = new RestTemplate();
 
