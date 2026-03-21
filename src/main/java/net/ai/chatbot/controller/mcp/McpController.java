@@ -41,7 +41,7 @@ public class McpController {
      * Returns OpenAI function-calling compatible tool definitions.
      * N8N passes these to the LLM before the conversation starts.
      */
-    @GetMapping("/tools")
+    @PostMapping("/tools")
     public ResponseEntity<McpToolsResponse> getTools(@PathVariable String chatbotId) {
         return ResponseEntity.ok(workflowConfigService.getTools(chatbotId));
     }
