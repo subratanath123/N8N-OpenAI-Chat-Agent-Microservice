@@ -22,5 +22,11 @@ public class McpExecuteRequest {
     private Map<String, Object> collectedParams;
     private String sessionId;
     private String userId;
+    /**
+     * Auth token from the embedding website's widget init.
+     * Forwarded as-is to the action endpoint via {{userToken}}.
+     * Never validated or stored by the backend.
+     */
+    private String userToken;
     private String message;
 }

@@ -58,6 +58,16 @@ public class WorkflowConfig {
         @Builder.Default
         private List<ActionParam> params = new ArrayList<>();
         private String bodyTemplate;
+        /**
+         * "static"  → always reply with successMessage
+         * "dynamic" → extract a field from the upstream response via responsePath
+         */
+        private String responseMode;
+        /**
+         * Dot-path into the upstream JSON response, e.g. "message" or "data.reply".
+         * Used only when responseMode = "dynamic".
+         */
+        private String responsePath;
         private String successMessage;
         private String failureMessage;
         private boolean enabled;

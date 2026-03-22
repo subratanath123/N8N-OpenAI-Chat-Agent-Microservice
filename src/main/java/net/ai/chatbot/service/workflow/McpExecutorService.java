@@ -1,5 +1,6 @@
 package net.ai.chatbot.service.workflow;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.mcp.McpExecuteRequest;
@@ -9,6 +10,7 @@ import net.ai.chatbot.entity.WorkflowConfig.ActionParam;
 import net.ai.chatbot.utils.EncryptionUtils;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
@@ -33,9 +35,20 @@ public class McpExecutorService {
                                @Qualifier("mcpRestTemplate") RestTemplate restTemplate) {
         this.workflowConfigService = workflowConfigService;
         this.encryptionUtils = encryptionUtils;
-        this.restTemplate = restTemplate;
+        this.restTemplate = configureTimeout(restTemplate);
         this.objectMapper = new ObjectMapper();
     }
+
+    /** Apply 10-second connect + read timeout to the MCP rest template */
+    private RestTemplate configureTimeout(RestTemplate rt) {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(10_000);
+        factory.setReadTimeout(10_000);
+        rt.setRequestFactory(factory);
+        return rt;
+    }
+
+    // ─── Execute ──────────────────────────────────────────────────────────
 
     public McpExecuteResponse execute(String chatbotId, McpExecuteRequest request) {
         String actionId = request.getActionId();
@@ -53,7 +66,7 @@ public class McpExecutorService {
 
             String body = interpolate(action, params,
                     request.getSessionId(), request.getUserId(),
-                    request.getMessage(), chatbotId);
+                    request.getUserToken(), request.getMessage(), chatbotId);
 
             HttpMethod httpMethod = HttpMethod.valueOf(action.getMethod());
             ResponseEntity<String> response = restTemplate.exchange(
@@ -61,20 +74,24 @@ public class McpExecutorService {
 
             boolean success = response.getStatusCode().is2xxSuccessful();
             long durationMs = Instant.now().toEpochMilli() - start;
-            log.info("MCP action '{}' completed: status={} duration={}ms", actionId, response.getStatusCode(), durationMs);
+            // Audit log — no payload, no userToken
+            log.info("MCP action audit: chatbotId={} actionId={} statusCode={} durationMs={}",
+                    chatbotId, actionId, response.getStatusCode().value(), durationMs);
 
             Object responseBody = parseBody(response.getBody());
+            String userMessage = resolveUserMessage(action, response.getBody(), success);
+
             return McpExecuteResponse.builder()
                     .success(success)
                     .statusCode(response.getStatusCode().value())
-                    .message(success ? action.getSuccessMessage() : action.getFailureMessage())
+                    .message(userMessage)
                     .responseBody(responseBody)
                     .build();
 
         } catch (HttpClientErrorException | HttpServerErrorException e) {
             long durationMs = Instant.now().toEpochMilli() - start;
-            log.error("MCP action '{}' HTTP error: {} duration={}ms body={}",
-                    actionId, e.getStatusCode(), durationMs, e.getResponseBodyAsString());
+            log.error("MCP action audit: chatbotId={} actionId={} statusCode={} durationMs={}",
+                    chatbotId, actionId, e.getStatusCode().value(), durationMs);
             return McpExecuteResponse.builder()
                     .success(false)
                     .statusCode(e.getStatusCode().value())
@@ -89,7 +106,7 @@ public class McpExecutorService {
                     .success(false)
                     .statusCode(504)
                     .message(action.getFailureMessage())
-                    .error("Connection failed or timed out: " + e.getMessage())
+                    .error("Connection timed out after 10 seconds")
                     .build();
 
         } catch (Exception e) {
@@ -103,28 +120,64 @@ public class McpExecutorService {
         }
     }
 
+    // ─── Response Mode ────────────────────────────────────────────────────
+
+    /**
+     * "dynamic" → extract responsePath from upstream JSON, fall back to successMessage.
+     * "static"  → always return successMessage.
+     */
+    private String resolveUserMessage(ActionEndpoint action, String responseBody, boolean success) {
+        if (!success) return action.getFailureMessage();
+
+        if ("dynamic".equals(action.getResponseMode())) {
+            String extracted = extractPath(responseBody, action.getResponsePath());
+            return (extracted != null && !extracted.isBlank()) ? extracted : action.getSuccessMessage();
+        }
+        return action.getSuccessMessage();
+    }
+
+    /**
+     * Traverses a dot-path (e.g. "data.reply") into a parsed JSON response.
+     */
+    private String extractPath(String responseBody, String dotPath) {
+        if (responseBody == null || dotPath == null || dotPath.isBlank()) return null;
+        try {
+            JsonNode root = objectMapper.readTree(responseBody);
+            for (String key : dotPath.split("\\.")) {
+                root = root.path(key);
+                if (root.isMissingNode()) return null;
+            }
+            return root.isTextual() ? root.asText() : root.toString();
+        } catch (Exception e) {
+            log.warn("extractPath failed for path '{}': {}", dotPath, e.getMessage());
+            return null;
+        }
+    }
+
     // ─── Body Template Interpolation ──────────────────────────────────────
 
     /**
-     * Three-pass interpolation:
-     *  1. Standard variables (actionName, sessionId, userId, chatbotId, message)
-     *  2. Dot-notation: {{obj.field}} → individual value
-     *  3. Object placeholder: {{obj}} → full JSON
-     *  4. Flat params: {{paramName}} → string value
+     * Processing order:
+     * 1. System variables: actionName, message, sessionId, userId, chatbotId, userToken
+     * 2. Dot-notation: {{order.quantity}} → individual field value
+     * 3. Object placeholder: {{order}} → full JSON
+     * 4. Flat params: {{productId}} → string value
      */
     String interpolate(ActionEndpoint action, Map<String, Object> params,
-                       String sessionId, String userId, String message, String chatbotId) {
+                       String sessionId, String userId, String userToken,
+                       String message, String chatbotId) {
         String template = action.getBodyTemplate();
         if (template == null || template.isBlank()) {
             return serializeToJson(params);
         }
 
         String out = template
-                .replace("{{actionName}}", action.getName() != null ? action.getName() : "")
-                .replace("{{chatbotId}}", chatbotId != null ? chatbotId : "")
-                .replace("{{sessionId}}", sessionId != null ? sessionId : "")
-                .replace("{{userId}}", userId != null ? userId : "")
-                .replace("{{message}}", message != null ? message : "");
+                .replace("{{actionName}}", nvl(action.getName()))
+                .replace("{{message}}",   nvl(params.get("message") instanceof String s ? s : message))
+                .replace("{{sessionId}}", nvl(sessionId))
+                .replace("{{userId}}",    nvl(userId))
+                .replace("{{chatbotId}}", nvl(chatbotId))
+                .replace("{{userToken}}", nvl(userToken)); // forwarded as-is, never logged
 
         // Pass 1: dot-notation {{obj.field}}
         for (ActionParam p : action.getParams()) {
@@ -132,23 +185,22 @@ public class McpExecutorService {
             Object objVal = params.get(p.getName());
             if (!(objVal instanceof Map<?, ?> objMap)) continue;
             for (Map.Entry<?, ?> entry : objMap.entrySet()) {
-                String placeholder = "{{" + p.getName() + "." + entry.getKey() + "}}";
-                out = out.replace(placeholder, String.valueOf(entry.getValue()));
+                out = out.replace("{{" + p.getName() + "." + entry.getKey() + "}}",
+                        String.valueOf(entry.getValue()));
             }
         }
 
-        // Pass 2: object placeholder {{obj}} → full JSON (no surrounding quotes in template)
+        // Pass 2: object placeholder {{obj}} → full JSON
         for (ActionParam p : action.getParams()) {
             if (!"object".equals(p.getType())) continue;
             Object objVal = params.get(p.getName());
             if (objVal == null) continue;
-            String json = serializeToJson(objVal);
-            out = out.replace("{{" + p.getName() + "}}", json);
+            out = out.replace("{{" + p.getName() + "}}", serializeToJson(objVal));
         }
 
         // Pass 3: flat params {{paramName}}
         for (Map.Entry<String, Object> entry : params.entrySet()) {
-            if (entry.getValue() instanceof Map<?, ?>) continue; // already handled
+            if (entry.getValue() instanceof Map<?, ?>) continue;
             out = out.replace("{{" + entry.getKey() + "}}",
                     entry.getValue() != null ? String.valueOf(entry.getValue()) : "");
         }
@@ -189,7 +241,7 @@ public class McpExecutorService {
         try {
             return encryptionUtils.decrypt(encryptedValue);
         } catch (Exception e) {
-            log.error("Failed to decrypt auth credential: {}", e.getMessage());
+            log.error("Failed to decrypt auth credential");
             return null;
         }
     }
@@ -207,7 +259,11 @@ public class McpExecutorService {
         try {
             return objectMapper.readValue(body, Object.class);
         } catch (Exception e) {
-            return body; // return raw string if not valid JSON
+            return body;
         }
+    }
+
+    private String nvl(String s) {
+        return s != null ? s : "";
     }
 }

@@ -27,6 +27,10 @@ public class ActionEndpointDto {
     @Builder.Default
     private List<ActionParamDto> params = new ArrayList<>();
     private String bodyTemplate;
+    /** "static" | "dynamic" — defaults to static */
+    private String responseMode;
+    /** Dot-path into upstream response, e.g. "message" or "data.reply" */
+    private String responsePath;
     private String successMessage;
     private String failureMessage;
     private boolean enabled;
