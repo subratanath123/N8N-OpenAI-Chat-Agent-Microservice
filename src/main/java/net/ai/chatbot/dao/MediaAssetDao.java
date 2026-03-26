@@ -46,4 +46,10 @@ public interface MediaAssetDao extends MongoRepository<MediaAsset, String> {
      * Delete by ID and user (for secure deletion)
      */
     void deleteByIdAndUserEmail(String id, String userEmail);
+
+    /**
+     * Find all assets by user and folder path starting with (for folder listing)
+     */
+    @Query("{ 'userEmail': ?0, 'folderPath': { $regex: ?1 } }")
+    java.util.List<MediaAsset> findByUserEmailAndFolderPathStartingWith(String userEmail, String folderPathPrefix);
 }

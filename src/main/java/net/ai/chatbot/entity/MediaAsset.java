@@ -37,6 +37,9 @@ public class MediaAsset {
      */
     private String fileName;
 
+    private String fileType;
+    private long fileSize;
+
     /**
      * MIME type (e.g., image/jpeg, video/mp4)
      */
@@ -63,10 +66,25 @@ public class MediaAsset {
      * Upload timestamp
      */
     private Instant createdAt;
+    private Instant uploadedAt;
 
     /**
      * Optional tags for organization
      */
     @Builder.Default
     private List<String> tags = new ArrayList<>();
+
+    /**
+     * Folder path for hierarchical organization (e.g., "My Photos/Vacation")
+     * Empty string means root level
+     */
+    @Builder.Default
+    private String folderPath = "";
+
+    /**
+     * Folder path for hierarchical organization (e.g., "My Photos/Vacation")
+     * Empty string means root level
+     */
+    @Builder.Default
+    private String source = "";
 }
