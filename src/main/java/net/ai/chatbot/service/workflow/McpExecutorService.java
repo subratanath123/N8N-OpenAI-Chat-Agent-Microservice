@@ -61,7 +61,14 @@ public class McpExecutorService {
         ActionEndpoint action = workflowConfigService.findActionById(chatbotId, actionId);
 
         try {
-            HttpHeaders headers = buildAuthHeaders(action);
+            HttpHeaders headers = buildAuthHeaders(
+                    action,
+                    request.getSessionId(),
+                    request.getUserId(),
+                    request.getUserToken(),
+                    request.getMessage(),
+                    chatbotId
+            );
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             String body = interpolate(action, params,
@@ -210,28 +217,57 @@ public class McpExecutorService {
 
     // ─── Auth Headers ─────────────────────────────────────────────────────
 
-    private HttpHeaders buildAuthHeaders(ActionEndpoint action) throws Exception {
+    private HttpHeaders buildAuthHeaders(ActionEndpoint action,
+                                         String sessionId,
+                                         String userId,
+                                         String userToken,
+                                         String message,
+                                         String chatbotId) throws Exception {
         HttpHeaders headers = new HttpHeaders();
         String authType = action.getAuthType();
         if (authType == null || authType.equals("none")) return headers;
 
         String decrypted = decrypt(action.getAuthValue());
         if (decrypted == null) return headers;
+        // Static secrets (no {{userToken}}) use the decrypted value as-is. When the template contains
+        // {{userToken}}, a missing runtime token yields blank resolved value and no auth header is sent.
+        String resolvedAuthValue = resolveAuthTemplate(decrypted, sessionId, userId, userToken, message, chatbotId, action.getName());
+        if (resolvedAuthValue == null || resolvedAuthValue.isBlank()) return headers;
 
         switch (authType) {
-            case "bearer" -> headers.set("Authorization", "Bearer " + decrypted);
+            case "bearer" -> headers.set("Authorization", "Bearer " + resolvedAuthValue);
             case "apikey" -> {
                 String headerName = action.getApiKeyHeader() != null
                         && !action.getApiKeyHeader().isBlank()
                         ? action.getApiKeyHeader() : "X-API-Key";
-                headers.set(headerName, decrypted);
+                headers.set(headerName, resolvedAuthValue);
             }
             case "basic" -> {
-                String encoded = Base64.getEncoder().encodeToString(decrypted.getBytes());
+                String encoded = Base64.getEncoder().encodeToString(resolvedAuthValue.getBytes());
                 headers.set("Authorization", "Basic " + encoded);
             }
         }
         return headers;
+    }
+
+    /**
+     * Allows auth credential templates like {{userToken}} so endpoints can use
+     * visitor-specific auth from chat widget initialization.
+     */
+    private String resolveAuthTemplate(String templateValue,
+                                       String sessionId,
+                                       String userId,
+                                       String userToken,
+                                       String message,
+                                       String chatbotId,
+                                       String actionName) {
+        return templateValue
+                .replace("{{actionName}}", nvl(actionName))
+                .replace("{{message}}", nvl(message))
+                .replace("{{sessionId}}", nvl(sessionId))
+                .replace("{{userId}}", nvl(userId))
+                .replace("{{chatbotId}}", nvl(chatbotId))
+                .replace("{{userToken}}", nvl(userToken));
     }
 
     // ─── Helpers ──────────────────────────────────────────────────────────

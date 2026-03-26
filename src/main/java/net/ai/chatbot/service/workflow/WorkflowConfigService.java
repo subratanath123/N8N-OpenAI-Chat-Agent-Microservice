@@ -150,6 +150,8 @@ public class WorkflowConfigService {
             if (p.isRequired()) required.add(p.getName());
         }
 
+        mergeMcpContextProperties(action, properties, required);
+
         String toolName = action.getName() != null
                 ? action.getName().toLowerCase().replace(" ", "_")
                 : action.getId();
@@ -157,6 +159,12 @@ public class WorkflowConfigService {
         String description = action.getDescription() != null ? action.getDescription() : "";
         if (action.getTriggerPhrases() != null && !action.getTriggerPhrases().isBlank()) {
             description += " Trigger phrases: " + action.getTriggerPhrases() + ".";
+        }
+        Map<String, Object> authMeta = buildAuthMetadata(action);
+        if (authMeta != null) {
+            description += " [Auth: " + authMeta.get("type") + "; "
+                    + (Boolean.TRUE.equals(authMeta.get("requiresUserToken"))
+                    ? "pass userToken in arguments." : "server-side credentials.") + "]";
         }
 
         return McpToolsResponse.Tool.builder()
@@ -170,7 +178,81 @@ public class WorkflowConfigService {
                                 .required(required)
                                 .build())
                         .build())
+                .auth(authMeta)
                 .build();
+    }
+
+    /**
+     * Adds standard MCP execution args and marks userToken required when auth is bound to {{userToken}}.
+     */
+    private void mergeMcpContextProperties(ActionEndpoint action,
+                                           Map<String, Object> properties,
+                                           List<String> required) {
+        if (!properties.containsKey("sessionId")) {
+            properties.put("sessionId", mcpStringProp("Conversation/session id for this chat."));
+        }
+        if (!properties.containsKey("userId")) {
+            properties.put("userId", mcpStringProp("End-user id when available."));
+        }
+        if (!properties.containsKey("message")) {
+            properties.put("message", mcpStringProp("Latest user message when invoking from chat."));
+        }
+        if (authRequiresUserToken(action) && !properties.containsKey("userToken")) {
+            properties.put("userToken", mcpStringProp(
+                    "Visitor token from the chat widget; required for this action's upstream auth."));
+            if (!required.contains("userToken")) {
+                required.add("userToken");
+            }
+        }
+    }
+
+    private Map<String, Object> mcpStringProp(String description) {
+        Map<String, Object> schema = new LinkedHashMap<>();
+        schema.put("type", "string");
+        schema.put("description", description);
+        return schema;
+    }
+
+    private Map<String, Object> buildAuthMetadata(ActionEndpoint action) {
+        String authType = action.getAuthType();
+        if (authType == null || "none".equalsIgnoreCase(authType)) {
+            return null;
+        }
+        Map<String, Object> auth = new LinkedHashMap<>();
+        auth.put("type", authType.toLowerCase());
+        boolean needsUser = authRequiresUserToken(action);
+        auth.put("requiresUserToken", needsUser);
+        if ("apikey".equalsIgnoreCase(authType)) {
+            String h = action.getApiKeyHeader();
+            if (h != null && !h.isBlank()) {
+                auth.put("apiKeyHeader", h);
+            }
+        }
+        auth.put("description", needsUser
+                ? "Upstream auth uses the visitor token; pass userToken in tool arguments (from widget init)."
+                : "Upstream auth uses a static credential stored on the server; userToken is not required.");
+        return auth;
+    }
+
+    private boolean authRequiresUserToken(ActionEndpoint action) {
+        String authType = action.getAuthType();
+        if (authType == null || "none".equalsIgnoreCase(authType)) {
+            return false;
+        }
+        String decrypted = decryptAuthForMeta(action.getAuthValue());
+        return decrypted != null && decrypted.contains("{{userToken}}");
+    }
+
+    private String decryptAuthForMeta(String encrypted) {
+        if (encrypted == null || encrypted.isBlank()) {
+            return null;
+        }
+        try {
+            return encryptionUtils.decrypt(encrypted);
+        } catch (Exception e) {
+            log.debug("Could not decrypt auth for MCP metadata: {}", e.getMessage());
+            return null;
+        }
     }
 
     private Map<String, Object> buildParamSchema(ActionParam p) {
@@ -289,7 +371,7 @@ public class WorkflowConfigService {
                         .url(a.getUrl())
                         .method(a.getMethod())
                         .authType(a.getAuthType())
-                        .authValue(a.getAuthValue() != null ? "••••••" : null)
+                        .authValue(getAuthValueForResponse(a.getAuthValue()))
                         .apiKeyHeader(a.getApiKeyHeader())
                         .params(a.getParams().stream().map(this::toParamDto).collect(Collectors.toList()))
                         .bodyTemplate(a.getBodyTemplate())
@@ -319,5 +401,23 @@ public class WorkflowConfigService {
                 .id(p.getId()).name(p.getName()).type(p.getType())
                 .description(p.getDescription()).required(p.isRequired())
                 .example(p.getExample()).properties(subs).build();
+    }
+
+    /**
+     * Keep non-secret template expressions visible in UI (e.g. {{userToken}})
+     * while masking actual credentials.
+     */
+    private String getAuthValueForResponse(String encryptedValue) {
+        if (encryptedValue == null || encryptedValue.isBlank()) return null;
+        try {
+            String decrypted = encryptionUtils.decrypt(encryptedValue);
+            if ("{{userToken}}".equals(decrypted)) {
+                return decrypted;
+            }
+            return "••••••";
+        } catch (Exception e) {
+            log.warn("Could not decrypt authValue for response masking: {}", e.getMessage());
+            return "••••••";
+        }
     }
 }

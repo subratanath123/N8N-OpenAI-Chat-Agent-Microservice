@@ -109,6 +109,9 @@ public class McpWorkflowRestController {
                 mcpTool.put("name", fn.getName());
                 mcpTool.put("description", fn.getDescription());
                 mcpTool.put("inputSchema", toInputSchema(fn.getParameters()));
+                if (tool.getAuth() != null && !tool.getAuth().isEmpty()) {
+                    mcpTool.put("auth", tool.getAuth());
+                }
                 tools.add(mcpTool);
             }
 
@@ -158,6 +161,7 @@ public class McpWorkflowRestController {
                     .collectedParams(arguments)
                     .sessionId(stringArg(arguments, "sessionId"))
                     .userId(stringArg(arguments, "userId"))
+                    .userToken(stringArg(arguments, "userToken"))
                     .message(stringArg(arguments, "message"))
                     .build();
 

@@ -31,6 +31,14 @@ public class GenericN8NService<T, R> {
     }
 
     public N8NChatResponse<R> sendMessage(ChatBot chatBot, Message message, String webhookUrl) {
+        return sendMessage(chatBot, message, webhookUrl, null);
+    }
+
+    /**
+     * @param forwardHeaders optional headers from the chat client to pass through to N8N (e.g. {@code userToken}).
+     */
+    public N8NChatResponse<R> sendMessage(ChatBot chatBot, Message message, String webhookUrl,
+                                          Map<String, String> forwardHeaders) {
         if (message == null) {
             return N8NChatResponse.<R>error("INVALID_MESSAGE", "Message payload is required");
         }
@@ -44,7 +52,7 @@ public class GenericN8NService<T, R> {
                 chatBot.getChatbotknowledgebasecollection(),
                 chatBot.getVectorIndexName(),
                 Collections.emptyMap(),
-                Collections.emptyMap(),
+                forwardHeaders != null ? forwardHeaders : Collections.emptyMap(),
                 message.getFileAttachments(),
                 message.getModel()
         );

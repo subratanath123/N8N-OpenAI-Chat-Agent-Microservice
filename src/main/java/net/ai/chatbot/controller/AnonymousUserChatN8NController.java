@@ -11,6 +11,9 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.Collections;
+import java.util.Map;
+
 @Slf4j
 @RestController
 @CrossOrigin(originPatterns = "*", allowCredentials = "true", allowedHeaders = "*")
@@ -33,21 +36,26 @@ public class AnonymousUserChatN8NController {
      * Send a single message to N8N workflow
      */
     @PostMapping("/chat")
-    public ResponseEntity<N8NChatResponse<Object>> sendMessage(@RequestBody Message message) {
+    public ResponseEntity<N8NChatResponse<Object>> sendMessage(
+            @RequestHeader(value = "userToken", required = false) String userToken,
+            @RequestBody Message message) {
 
         ChatBot chatBot = chatBotService.getChatBot(message.getChatbotId());
 
         N8NChatResponse<Object> response = n8nService.sendMessage(chatBot, message,
                 message.getFileAttachments() != null && !message.getFileAttachments().isEmpty()
                         ? multimodalWebhookUrl
-                        : webhookUrl
+                        : webhookUrl,
+                forwardUserTokenHeader(userToken)
         );
 
         return ResponseEntity.ok(response);
     }
 
     @PostMapping("/chat/generic")
-    public ResponseEntity<N8NChatResponse<Object>> sendGenericMessage(@RequestBody Message message) {
+    public ResponseEntity<N8NChatResponse<Object>> sendGenericMessage(
+            @RequestHeader(value = "userToken", required = false) String userToken,
+            @RequestBody Message message) {
         log.info("Anonymous generic chat request received - sessionId: {}", message.getSessionId());
 
         ChatBot chatBot;
@@ -63,10 +71,19 @@ public class AnonymousUserChatN8NController {
         N8NChatResponse<Object> response = n8nService.sendMessage(chatBot, message,
                 message.getFileAttachments() != null && !message.getFileAttachments().isEmpty()
                         ? multimodalWebhookUrl
-                        : webhookUrl
+                        : webhookUrl,
+                forwardUserTokenHeader(userToken)
         );
 
         return ResponseEntity.ok(response);
+    }
+
+    /** Forwards the widget visitor token to N8N as the {@code userToken} header. */
+    private static Map<String, String> forwardUserTokenHeader(String userToken) {
+        if (userToken == null || userToken.isBlank()) {
+            return Collections.emptyMap();
+        }
+        return Map.of("userToken", userToken);
     }
 
     /**

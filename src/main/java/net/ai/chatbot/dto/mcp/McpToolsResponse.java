@@ -28,6 +28,10 @@ public class McpToolsResponse {
         @Builder.Default
         private String type = "function";
         private Function function;
+        /**
+         * MCP client extension: how this action authenticates upstream (authType, requiresUserToken, etc.).
+         */
+        private Map<String, Object> auth;
     }
 
     @Data
