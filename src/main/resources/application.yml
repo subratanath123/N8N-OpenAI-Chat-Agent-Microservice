@@ -24,6 +24,16 @@ google:
 # App base URL for download links (used by File Converter MCP for download URLs)
 app:
   base-url: ${APP_BASE_URL:http://api.jadeordersmedia.com}
+  # Public website / dashboard URL (used in team invite emails)
+  frontend-url: ${FRONTEND_URL:${APP_FRONTEND_URL:}}
+  # Path appended to frontend-url for the “open app” link in invite emails (leading slash)
+  frontend-invite-path: ${APP_FRONTEND_INVITE_PATH:/ai-chatbots}
+  # From address for team invite emails (optional if spring.mail.username is set)
+  mail:
+    from: ${APP_MAIL_FROM:}
+  # SMTP is not defined here — set spring.mail.* via env or config server, for example:
+  #   SMTP_HOST, SMTP_PORT, SMTP_USERNAME, SMTP_PASSWORD
+  # Team invites also need app.frontend-url (FRONTEND_URL / APP_FRONTEND_URL) for the link in the email.
 
 # Encryption Configuration (for storing OAuth tokens securely)
 encryption:

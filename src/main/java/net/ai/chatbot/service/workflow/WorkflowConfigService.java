@@ -29,6 +29,12 @@ import java.util.stream.Collectors;
 @Slf4j
 public class WorkflowConfigService {
 
+    /**
+     * Returned when no workflow exists or every action is disabled, so MCP clients (e.g. n8n)
+     * always receive at least one tool from {@link #getTools(String)}.
+     */
+    public static final String WORKFLOW_PLACEHOLDER_TOOL_NAME = "workflow_configuration_status";
+
     private final WorkflowConfigDao workflowConfigDao;
     private final EncryptionUtils encryptionUtils;
 
@@ -72,20 +78,54 @@ public class WorkflowConfigService {
 
     /**
      * Builds MCP-compatible (OpenAI function-calling) tool list from stored actions.
+     * If there are no enabled actions, returns a single informational placeholder tool so
+     * clients never see an empty tool list (n8n MCP Client fails on empty lists).
      */
     public McpToolsResponse getTools(String chatbotId) {
         WorkflowConfig config = workflowConfigDao.findByChatbotId(chatbotId).orElse(null);
 
+        List<McpToolsResponse.Tool> tools;
         if (config == null) {
-            return McpToolsResponse.builder().chatbotId(chatbotId).tools(List.of()).build();
+            tools = new ArrayList<>();
+        } else {
+            tools = config.getActions().stream()
+                    .filter(ActionEndpoint::isEnabled)
+                    .map(this::buildTool)
+                    .collect(Collectors.toList());
         }
 
-        List<McpToolsResponse.Tool> tools = config.getActions().stream()
-                .filter(ActionEndpoint::isEnabled)
-                .map(this::buildTool)
-                .collect(Collectors.toList());
+        if (tools.isEmpty()) {
+            tools = List.of(buildWorkflowPlaceholderTool(chatbotId));
+        }
 
         return McpToolsResponse.builder().chatbotId(chatbotId).tools(tools).build();
+    }
+
+    private McpToolsResponse.Tool buildWorkflowPlaceholderTool(String chatbotId) {
+        Map<String, Object> noteProp = new LinkedHashMap<>();
+        noteProp.put("type", "string");
+        noteProp.put("description", "Optional; ignored. This is a placeholder until workflow actions exist.");
+
+        Map<String, Object> properties = new LinkedHashMap<>();
+        properties.put("note", noteProp);
+
+        String description = "No workflow HTTP actions are configured for chatbot "
+                + chatbotId
+                + " yet, or all actions are disabled. Add and enable actions in the app (AI Chatbots → "
+                + "Workflow), then list tools again. Invoking this tool returns setup instructions.";
+
+        return McpToolsResponse.Tool.builder()
+                .type("function")
+                .function(McpToolsResponse.Function.builder()
+                        .name(WORKFLOW_PLACEHOLDER_TOOL_NAME)
+                        .description(description)
+                        .parameters(McpToolsResponse.ParameterSchema.builder()
+                                .type("object")
+                                .properties(properties)
+                                .required(List.of())
+                                .build())
+                        .build())
+                .build();
     }
 
     /**

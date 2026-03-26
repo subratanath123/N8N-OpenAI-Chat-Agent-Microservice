@@ -20,6 +20,7 @@ import java.util.stream.Collectors;
 public class TeamService {
 
     private final TeamMembershipDao teamMembershipDao;
+    private final TeamInviteNotificationService teamInviteNotificationService;
 
     public static String normalizeEmail(String email) {
         if (email == null) return "";
@@ -63,6 +64,7 @@ public class TeamService {
                 .build();
         teamMembershipDao.save(created);
         log.info("Created team membership {} -> {} as {}", ownerEmail, memberEmail, role);
+        teamInviteNotificationService.notifyInvited(memberEmail, ownerEmail, roleToDisplay(role));
         return toResponse(created);
     }
 
@@ -90,12 +92,19 @@ public class TeamService {
         };
     }
 
-    private TeamMemberResponse toResponse(TeamMembership m) {
-        String displayRole = switch (m.getRole()) {
+    private static String roleToDisplay(String storedRole) {
+        if (storedRole == null) {
+            return "Viewer";
+        }
+        return switch (storedRole) {
             case "ADMIN" -> "Admin";
             case "EDITOR" -> "Editor";
             default -> "Viewer";
         };
+    }
+
+    private TeamMemberResponse toResponse(TeamMembership m) {
+        String displayRole = roleToDisplay(m.getRole());
         String local = m.getMemberEmail();
         int at = local.indexOf('@');
         if (at > 0) {

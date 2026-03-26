@@ -8,6 +8,7 @@ import net.ai.chatbot.dto.mcp.McpToolsResponse;
 import net.ai.chatbot.entity.WorkflowConfig.ActionEndpoint;
 import net.ai.chatbot.service.workflow.McpExecutorService;
 import net.ai.chatbot.service.workflow.WorkflowConfigService;
+import static net.ai.chatbot.service.workflow.WorkflowConfigService.WORKFLOW_PLACEHOLDER_TOOL_NAME;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import reactor.core.publisher.Mono;
@@ -103,7 +104,11 @@ public class McpWorkflowRestController {
             McpToolsResponse toolsResponse = workflowConfigService.getTools(chatbotId);
             List<Map<String, Object>> tools = new ArrayList<>();
 
-            for (McpToolsResponse.Tool tool : toolsResponse.getTools()) {
+            List<McpToolsResponse.Tool> toolList = toolsResponse.getTools();
+            if (toolList == null) {
+                toolList = List.of();
+            }
+            for (McpToolsResponse.Tool tool : toolList) {
                 McpToolsResponse.Function fn = tool.getFunction();
                 Map<String, Object> mcpTool = new LinkedHashMap<>();
                 mcpTool.put("name", fn.getName());
@@ -151,6 +156,17 @@ public class McpWorkflowRestController {
         if (toolName == null || toolName.isBlank()) {
             return Mono.just(ResponseEntity.ok(
                     createJsonRpcError(id, -32602, "Missing required param: name", null)));
+        }
+
+        if (WORKFLOW_PLACEHOLDER_TOOL_NAME.equals(toolName)) {
+            String text = "No workflow HTTP actions are configured for chatbot \"" + chatbotId
+                    + "\", or every action is disabled.\n\n"
+                    + "In the app: AI Chatbots → open this bot → Workflow → add at least one Action Endpoint, "
+                    + "enable it, and Save. Then run tools/list again in n8n to see your real tools.";
+            Map<String, Object> placeholderResult = new LinkedHashMap<>();
+            placeholderResult.put("content", List.of(Map.of("type", "text", "text", text)));
+            placeholderResult.put("isError", false);
+            return Mono.just(ResponseEntity.ok(createJsonRpcSuccess(id, placeholderResult)));
         }
 
         return Mono.fromCallable(() -> {
