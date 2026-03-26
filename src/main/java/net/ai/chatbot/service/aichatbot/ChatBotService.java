@@ -2,6 +2,10 @@ package net.ai.chatbot.service.aichatbot;
 
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dao.ChatBotDao;
+import net.ai.chatbot.dao.TeamMembershipDao;
+import net.ai.chatbot.entity.TeamMembership;
+import net.ai.chatbot.service.googlecalendar.ChatbotOwnershipService;
+import net.ai.chatbot.service.team.TeamService;
 import net.ai.chatbot.dto.UserChatHistory;
 import net.ai.chatbot.dto.aichatbot.ChatBotCreationRequest;
 import net.ai.chatbot.entity.*;
@@ -29,13 +33,18 @@ import static net.ai.chatbot.constants.Constants.CHAT_BOT_CREATE_EVENT_STREAM;
 public class ChatBotService {
 
     private final ChatBotDao chatBotDao;
+    private final TeamMembershipDao teamMembershipDao;
+    private final ChatbotOwnershipService chatbotOwnershipService;
     private final MongoTemplate mongoTemplate;
 
     private final RedisTemplate<String, String> redisTemplate;
 
-    public ChatBotService(ChatBotDao chatBotDao, MongoTemplate mongoTemplate,
+    public ChatBotService(ChatBotDao chatBotDao, TeamMembershipDao teamMembershipDao,
+                          ChatbotOwnershipService chatbotOwnershipService, MongoTemplate mongoTemplate,
                           RedisTemplate<String, String> redisTemplate) {
         this.chatBotDao = chatBotDao;
+        this.teamMembershipDao = teamMembershipDao;
+        this.chatbotOwnershipService = chatbotOwnershipService;
         this.mongoTemplate = mongoTemplate;
         this.redisTemplate = redisTemplate;
     }
@@ -440,6 +449,7 @@ public class ChatBotService {
                             .status(chatbot.getStatus())
                             .totalConversations(conversations)
                             .totalMessages(messages)
+                            .canConfigure(chatbotOwnershipService.canConfigureChatbot(chatbot.getId(), userEmail))
                             .build();
                 })
                 .collect(Collectors.toList());
@@ -656,11 +666,21 @@ public class ChatBotService {
     }
 
     /**
-     * Get all chatbots by user
+     * Get all chatbots owned by the user plus chatbots shared via team membership.
      */
     public List<ChatBot> getChatBotsByUser(String createdBy) {
         log.info("Retrieving chatbots for user: {}", createdBy);
-        return chatBotDao.findByCreatedBy(createdBy);
+        String u = TeamService.normalizeEmail(createdBy);
+        LinkedHashMap<String, ChatBot> byId = new LinkedHashMap<>();
+        for (ChatBot b : chatBotDao.findByCreatedByIgnoreCase(u)) {
+            byId.put(b.getId(), b);
+        }
+        for (TeamMembership m : teamMembershipDao.findByMemberEmail(u)) {
+            for (ChatBot b : chatBotDao.findByCreatedByIgnoreCase(m.getOwnerEmail())) {
+                byId.putIfAbsent(b.getId(), b);
+            }
+        }
+        return new ArrayList<>(byId.values());
     }
 
     /**

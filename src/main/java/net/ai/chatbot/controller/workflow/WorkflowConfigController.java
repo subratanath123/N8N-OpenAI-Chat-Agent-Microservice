@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dto.workflow.WorkflowConfigRequest;
 import net.ai.chatbot.dto.workflow.WorkflowConfigResponse;
+import net.ai.chatbot.service.googlecalendar.ChatbotOwnershipService;
 import net.ai.chatbot.service.workflow.WorkflowConfigService;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.http.*;
@@ -23,11 +24,19 @@ import java.util.Map;
 public class WorkflowConfigController {
 
     private final WorkflowConfigService workflowConfigService;
+    private final ChatbotOwnershipService chatbotOwnershipService;
     private static final int TEST_TIMEOUT_MS = 10_000;
 
     /** GET /v1/api/chatbot/{chatbotId}/workflow — authValue masked as ●●●●●● */
     @GetMapping
     public ResponseEntity<?> getWorkflow(@PathVariable String chatbotId) {
+        try {
+            chatbotOwnershipService.verifyCanView(chatbotId, AuthUtils.getEmail());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        }
         try {
             return ResponseEntity.ok(workflowConfigService.getWorkflow(chatbotId));
         } catch (IllegalArgumentException e) {
@@ -48,6 +57,13 @@ public class WorkflowConfigController {
     public ResponseEntity<?> saveWorkflow(@PathVariable String chatbotId,
                                           @RequestBody WorkflowConfigRequest request) {
         try {
+            chatbotOwnershipService.verifyCanConfigure(chatbotId, AuthUtils.getEmail());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
+        }
+        try {
             String ownerId = AuthUtils.getUserEmail();
             WorkflowConfigResponse response = workflowConfigService.saveWorkflow(chatbotId, ownerId, request);
             return ResponseEntity.ok(response);
@@ -67,6 +83,14 @@ public class WorkflowConfigController {
                                                 @RequestBody WorkflowTestRequest request) {
         if (request == null || request.getUrl() == null || request.getUrl().isBlank()) {
             return ResponseEntity.badRequest().body(Map.of("error", "Action URL is required"));
+        }
+
+        try {
+            chatbotOwnershipService.verifyCanConfigure(chatbotId, AuthUtils.getEmail());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", e.getMessage()));
         }
 
         try {

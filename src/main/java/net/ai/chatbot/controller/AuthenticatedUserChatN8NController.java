@@ -50,6 +50,13 @@ public class AuthenticatedUserChatN8NController {
 
     @PostMapping("/chatHistory/{chatbotId}")
     public ResponseEntity<List<UserChatHistory>> getConversationList(@PathVariable String chatbotId) {
+        try {
+            chatbotOwnershipService.verifyCanView(chatbotId, AuthUtils.getEmail());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         List<UserChatHistory> chatHistories = chatBotService.getChatConversationList(chatbotId);
 
@@ -58,6 +65,13 @@ public class AuthenticatedUserChatN8NController {
 
     @PostMapping("/chatHistory/{chatbotId}/{conversationId}")
     public ResponseEntity<List<UserChatHistory>> getChatHistory(@PathVariable String chatbotId, @PathVariable String conversationId) {
+        try {
+            chatbotOwnershipService.verifyCanView(chatbotId, AuthUtils.getEmail());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         List<UserChatHistory> chatHistories = chatBotService.getChatHistory(chatbotId, conversationId);
 
@@ -167,9 +181,9 @@ public class AuthenticatedUserChatN8NController {
                                 "Chatbot not found: " + request.getChatbotId(), timestamp));
             }
             
-            // Verify user has permission to manage this chatbot (ownership check)
+            // Owner or team Admin/Editor can send admin replies
             try {
-                chatbotOwnershipService.verifyOwnership(request.getChatbotId(), userEmail);
+                chatbotOwnershipService.verifyCanConfigure(request.getChatbotId(), userEmail);
             } catch (SecurityException e) {
                 log.warn("Permission denied for user {} on chatbot {}", userEmail, request.getChatbotId());
                 return ResponseEntity.status(HttpStatus.FORBIDDEN)

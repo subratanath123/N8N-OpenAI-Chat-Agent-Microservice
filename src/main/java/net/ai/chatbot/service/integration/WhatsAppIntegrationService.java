@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.ai.chatbot.dao.ChatBotDao;
 import net.ai.chatbot.entity.ChatBot;
 import net.ai.chatbot.entity.WhatsAppIntegration;
+import net.ai.chatbot.service.googlecalendar.ChatbotOwnershipService;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
@@ -22,10 +23,13 @@ public class WhatsAppIntegrationService {
 
     private final MongoTemplate mongoTemplate;
     private final ChatBotDao chatBotDao;
+    private final ChatbotOwnershipService chatbotOwnershipService;
 
-    public WhatsAppIntegrationService(MongoTemplate mongoTemplate, ChatBotDao chatBotDao) {
+    public WhatsAppIntegrationService(MongoTemplate mongoTemplate, ChatBotDao chatBotDao,
+                                      ChatbotOwnershipService chatbotOwnershipService) {
         this.mongoTemplate = mongoTemplate;
         this.chatBotDao = chatBotDao;
+        this.chatbotOwnershipService = chatbotOwnershipService;
     }
 
     /**
@@ -45,7 +49,7 @@ public class WhatsAppIntegrationService {
         validateChatbotId(whatsAppIntegration.chatbotId());
 
         // Validate chatbot exists and user has permission
-        validateAndGetChatBot(whatsAppIntegration.chatbotId(), userEmail);
+        validateAndGetChatBot(whatsAppIntegration.chatbotId(), userEmail, true);
 
         // Validate required fields
         validateRequiredFields(whatsAppIntegration);
@@ -113,7 +117,7 @@ public class WhatsAppIntegrationService {
      */
     public Optional<WhatsAppIntegration> getWhatsAppIntegrationByChatbotId(String chatbotId, String userEmail) {
         // Validate user has access to the chatbot
-        validateAndGetChatBot(chatbotId, userEmail);
+        validateAndGetChatBot(chatbotId, userEmail, false);
 
         Query query = new Query(Criteria.where("chatbotId").is(chatbotId));
         WhatsAppIntegration integration = mongoTemplate.findOne(query, WhatsAppIntegration.class);
@@ -137,7 +141,7 @@ public class WhatsAppIntegrationService {
         validateChatbotId(chatbotId);
 
         // Validate chatbot exists and user has permission
-        validateAndGetChatBot(chatbotId, userEmail);
+        validateAndGetChatBot(chatbotId, userEmail, true);
 
         // Get existing integration
         Query query = new Query(Criteria.where("chatbotId").is(chatbotId));
@@ -176,14 +180,25 @@ public class WhatsAppIntegrationService {
         }
     }
 
-    private ChatBot validateAndGetChatBot(String chatbotId, String userEmail) {
+    private ChatBot validateAndGetChatBot(String chatbotId, String userEmail, boolean requireConfigure) {
         Optional<ChatBot> chatbotOpt = chatBotDao.findById(chatbotId);
         if (chatbotOpt.isEmpty()) {
             throw new IllegalStateException("Chatbot not found with ID: " + chatbotId);
         }
 
         ChatBot chatBot = chatbotOpt.get();
-        if (!chatBot.getCreatedBy().equals(userEmail) && !AuthUtils.isAdmin()) {
+        if (AuthUtils.isAdmin()) {
+            return chatBot;
+        }
+        try {
+            if (requireConfigure) {
+                chatbotOwnershipService.verifyCanConfigure(chatbotId, userEmail);
+            } else {
+                chatbotOwnershipService.verifyCanView(chatbotId, userEmail);
+            }
+        } catch (IllegalArgumentException e) {
+            throw new IllegalStateException("Chatbot not found with ID: " + chatbotId);
+        } catch (SecurityException e) {
             throw new IllegalStateException("You don't have permission to setup WhatsApp for this chatbot");
         }
 

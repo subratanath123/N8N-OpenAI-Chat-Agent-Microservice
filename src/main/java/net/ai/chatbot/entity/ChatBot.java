@@ -83,6 +83,10 @@ public class ChatBot {
     @Transient
     private WhatsAppIntegration whatsAppIntegration;
 
+    /** Set on API responses only: whether the current user may edit this chatbot (not persisted). */
+    @Transient
+    private Boolean canConfigure;
+
     public String getChatbotknowledgebasecollection() {
         return "jade-ai-knowledgebase-" + id;
     }

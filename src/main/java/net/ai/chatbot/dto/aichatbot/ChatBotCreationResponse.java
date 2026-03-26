@@ -24,5 +24,8 @@ public class ChatBotCreationResponse {
     // Statistics (optional, included in list response)
     private Long totalConversations;
     private Long totalMessages;
+
+    /** True if the current user may edit this chatbot (owner or team Admin/Editor). */
+    private Boolean canConfigure;
 }
 

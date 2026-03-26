@@ -15,6 +15,11 @@ public interface ChatBotDao extends MongoRepository<ChatBot, String> {
      * Find chatbots by creator email
      */
     List<ChatBot> findByCreatedBy(String createdBy);
+
+    /**
+     * Case-insensitive match for creator email (team membership + mixed-case JWT).
+     */
+    List<ChatBot> findByCreatedByIgnoreCase(String createdBy);
     
     /**
      * Find chatbot by name and creator

@@ -6,6 +6,7 @@ import net.ai.chatbot.dto.aichatbot.*;
 import net.ai.chatbot.entity.ChatBot;
 import net.ai.chatbot.entity.KnowledgeBase;
 import net.ai.chatbot.service.aichatbot.ChatBotService;
+import net.ai.chatbot.service.googlecalendar.ChatbotOwnershipService;
 import net.ai.chatbot.utils.AuthUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -23,9 +24,11 @@ import java.util.stream.Collectors;
 public class AIChatBotController {
 
     private final ChatBotService chatBotService;
+    private final ChatbotOwnershipService chatbotOwnershipService;
 
-    public AIChatBotController(ChatBotService chatBotService) {
+    public AIChatBotController(ChatBotService chatBotService, ChatbotOwnershipService chatbotOwnershipService) {
         this.chatBotService = chatBotService;
+        this.chatbotOwnershipService = chatbotOwnershipService;
     }
 
     /**
@@ -90,6 +93,7 @@ public class AIChatBotController {
                                 .message("Chatbot retrieved")
                                 .totalConversations(stats.getTotalConversations())
                                 .totalMessages(stats.getTotalMessages())
+                                .canConfigure(chatbotOwnershipService.canConfigureChatbot(chatbot.getId(), AuthUtils.getEmail()))
                                 .build();
                     })
                     .collect(Collectors.toList());
@@ -111,11 +115,21 @@ public class AIChatBotController {
     public ResponseEntity<ChatBot> getChatBot(@PathVariable String id) {
         log.info("Getting chatbot: {}", id);
 
+        try {
+            chatbotOwnershipService.verifyCanView(id, AuthUtils.getEmail());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+
         var chatbot = chatBotService.getChatBot(id);
 
         if (chatbot == null) {
             return ResponseEntity.notFound().build();
         }
+
+        chatbot.setCanConfigure(chatbotOwnershipService.canConfigureChatbot(id, AuthUtils.getEmail()));
 
         return ResponseEntity.ok(chatbot);
     }
@@ -125,9 +139,16 @@ public class AIChatBotController {
      * GET /v1/api/chatbot//{id}/knowledgebase/list
      */
     @GetMapping("/{id}/knowledge-bases")
-    public List<KnowledgeBase> getKnowledgebaseList(@PathVariable String id) {
+    public ResponseEntity<List<KnowledgeBase>> getKnowledgebaseList(@PathVariable String id) {
         log.info("Getting chatbot knowledge base list: {}", id);
-        return chatBotService.getKnowledgeBaseList(id);
+        try {
+            chatbotOwnershipService.verifyCanView(id, AuthUtils.getEmail());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
+        return ResponseEntity.ok(chatBotService.getKnowledgeBaseList(id));
     }
 
     /**
@@ -138,6 +159,14 @@ public class AIChatBotController {
     public ResponseEntity<ChatBot> updateChatBot(@PathVariable String id,
                                                  @Valid @RequestBody ChatBotCreationRequest request) {
         log.info("Updating chatbot: {}", id);
+
+        try {
+            chatbotOwnershipService.verifyCanConfigure(id, AuthUtils.getEmail());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (SecurityException e) {
+            return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+        }
 
         ChatBot chatBot = chatBotService.updateChatBot(id, request);
 
@@ -152,6 +181,24 @@ public class AIChatBotController {
     public ResponseEntity<Map<String, Object>> deleteChatBot(@PathVariable String id) {
         try {
             log.info("Deleting chatbot: {} for user: {}", id, AuthUtils.getEmail());
+
+            try {
+                chatbotOwnershipService.verifyOwnership(id, AuthUtils.getEmail());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of(
+                                "success", false,
+                                "error", "Not Found",
+                                "message", e.getMessage()
+                        ));
+            } catch (SecurityException e) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "success", false,
+                                "error", "Forbidden",
+                                "message", "Only the owner can delete this chatbot"
+                        ));
+            }
 
             chatBotService.deleteChatBot(id);
 
@@ -191,6 +238,24 @@ public class AIChatBotController {
             @Valid @RequestBody ChatBotToggleRequest request) {
         try {
             log.info("Toggling chatbot status: {} to {} for user: {}", id, request.getStatus(), AuthUtils.getEmail());
+
+            try {
+                chatbotOwnershipService.verifyCanConfigure(id, AuthUtils.getEmail());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(Map.of(
+                                "success", false,
+                                "error", "Not Found",
+                                "message", e.getMessage()
+                        ));
+            } catch (SecurityException e) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                        .body(Map.of(
+                                "success", false,
+                                "error", "Forbidden",
+                                "message", e.getMessage()
+                        ));
+            }
 
             ChatBot chatBot = chatBotService.toggleChatBotStatus(id, request.getStatus());
 
@@ -274,6 +339,14 @@ public class AIChatBotController {
     public ResponseEntity<ChatBotStatsItemResponse> getChatBotStatsById(@PathVariable String chatbotId) {
         try {
             log.info("Getting stats for chatbot: {} requested by user: {}", chatbotId, AuthUtils.getEmail());
+
+            try {
+                chatbotOwnershipService.verifyCanView(chatbotId, AuthUtils.getEmail());
+            } catch (IllegalArgumentException e) {
+                return ResponseEntity.notFound().build();
+            } catch (SecurityException e) {
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).build();
+            }
 
             ChatBotStatsItemResponse stats = chatBotService.getChatBotStatsById(chatbotId);
 

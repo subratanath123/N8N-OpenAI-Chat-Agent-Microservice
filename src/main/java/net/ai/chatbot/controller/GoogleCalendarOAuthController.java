@@ -72,7 +72,7 @@ public class GoogleCalendarOAuthController {
             }
 
             // Verify chatbot ownership
-            ownershipService.verifyOwnership(chatbotId, userEmail);
+            ownershipService.verifyCanConfigure(chatbotId, userEmail);
 
             // Calculate expiration date
             Date expiresAt = new Date(System.currentTimeMillis() + request.getExpiresIn() * 1000L);
@@ -154,7 +154,7 @@ public class GoogleCalendarOAuthController {
             }
 
             // Verify chatbot ownership
-            ownershipService.verifyOwnership(chatbotId, userEmail);
+            ownershipService.verifyCanConfigure(chatbotId, userEmail);
 
             // Check if token exists
             GoogleCalendarToken token = tokenDao.findByChatbotId(chatbotId).orElse(null);
@@ -222,7 +222,7 @@ public class GoogleCalendarOAuthController {
             }
 
             // Verify chatbot ownership
-            ownershipService.verifyOwnership(chatbotId, userEmail);
+            ownershipService.verifyCanConfigure(chatbotId, userEmail);
 
             // Get token from database
             GoogleCalendarToken token = tokenDao.findByChatbotId(chatbotId)
@@ -325,7 +325,7 @@ public class GoogleCalendarOAuthController {
             }
 
             // Verify chatbot ownership
-            ownershipService.verifyOwnership(chatbotId, userEmail);
+            ownershipService.verifyCanConfigure(chatbotId, userEmail);
 
             // Get token from database
             GoogleCalendarToken token = tokenDao.findByChatbotId(chatbotId)
@@ -414,7 +414,7 @@ public class GoogleCalendarOAuthController {
             }
 
             // Verify chatbot ownership
-            ownershipService.verifyOwnership(chatbotId, userEmail);
+            ownershipService.verifyCanConfigure(chatbotId, userEmail);
 
             // Get token from database
             GoogleCalendarToken token = tokenDao.findByChatbotId(chatbotId)
